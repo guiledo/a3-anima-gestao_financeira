@@ -1,4 +1,4 @@
-﻿# Desenvolvimento Spring Boot — A3 Sistemas Distribuídos e Mobile
+﻿# Desenvolvimento Spring Boot : A3 Sistemas Distribuídos e Mobile
 
 > Tema do projeto: **Gestão financeira e controle de produtos**  
 > Objetivo: **criar um software funcional** com as tecnologias abordadas (sobretudo Spring Boot), implementando características de um sistema distribuído e conectando teoria e prática.
