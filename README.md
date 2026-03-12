@@ -116,3 +116,5 @@ Exemplo:
 
 ## 13) Próximos passos do time
 `TODO` Liste as tarefas abertas (ex.: autenticação, relatório financeiro, dashboard, etc.)
+
+Este projeto é distribuído sob a licença MIT. Consulte o arquivo `LICENSE` para detalhes.
