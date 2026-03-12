@@ -6,6 +6,8 @@
 Este documento descreve como desenvolvemos a API Spring Boot do projeto, quais decisões técnicas foram tomadas e como executar o sistema localmente.  
 Onde houver `TODO`, complete com as decisões reais do grupo.
 
+<a href="#mit-license"><kbd>MIT License</kbd></a>
+
 ## 1) Escopo e responsabilidades
 - **API principal (Spring Boot)**: expõe endpoints REST para gestão financeira e controle de produtos.
 - **Cliente(s)**: front‑end web e/ou app mobile que consomem a API.
@@ -117,4 +119,5 @@ Exemplo:
 ## 13) Próximos passos do time
 `TODO` Liste as tarefas abertas (ex.: autenticação, relatório financeiro, dashboard, etc.)
 
+## MIT License
 Este projeto é distribuído sob a licença MIT. Consulte o arquivo `LICENSE` para detalhes.
