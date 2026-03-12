@@ -1,35 +1,35 @@
-﻿# Desenvolvimento Spring Boot â€” A3 Sistemas DistribuÃ­dos e Mobile
+﻿# Desenvolvimento Spring Boot — A3 Sistemas Distribuídos e Mobile
 
-> Tema do projeto: **GestÃ£o financeira e controle de produtos**  
-> Objetivo: **criar um software funcional** com as tecnologias abordadas (sobretudo Spring Boot), implementando caracterÃ­sticas de um sistema distribuÃ­do e conectando teoria e prÃ¡tica.
+> Tema do projeto: **Gestão financeira e controle de produtos**  
+> Objetivo: **criar um software funcional** com as tecnologias abordadas (sobretudo Spring Boot), implementando características de um sistema distribuído e conectando teoria e prática.
 
-Este documento descreve como desenvolvemos a API Spring Boot do projeto, quais decisÃµes tÃ©cnicas foram tomadas e como executar o sistema localmente.  
-Onde houver `TODO`, complete com as decisÃµes reais do grupo.
+Este documento descreve como desenvolvemos a API Spring Boot do projeto, quais decisões técnicas foram tomadas e como executar o sistema localmente.  
+Onde houver `TODO`, complete com as decisões reais do grupo.
 
 ## 1) Escopo e responsabilidades
-- **API principal (Spring Boot)**: expÃµe endpoints REST para gestÃ£o financeira e controle de produtos.
-- **Cliente(s)**: frontâ€‘end web e/ou app mobile que consomem a API.
-- **ServiÃ§os externos**: a definir em grupo (ex.: gateway de pagamento, email, mensageria, etc).
+- **API principal (Spring Boot)**: expõe endpoints REST para gestão financeira e controle de produtos.
+- **Cliente(s)**: front‑end web e/ou app mobile que consomem a API.
+- **Serviços externos**: a definir em grupo (ex.: gateway de pagamento, email, mensageria, etc).
 
-## 2) Stack e versÃµes
-- **Java**: 25.0.2 (OpenJDK, versÃ£o atual estÃ¡vel)
-- **Spring Boot**: 4.0.3 (Ãºltima versÃ£o estÃ¡vel, lanÃ§ada em 19/02/2026)
+## 2) Stack e versões
+- **Java**: 25.0.2 (OpenJDK, versão atual estável)
+- **Spring Boot**: 4.0.3 (última versão estável, lançada em 19/02/2026)
 - **Build**: Maven
 - **Banco de dados**: a definir em grupo (PostgreSQL, MySQL, H2, etc.)
-- **MigraÃ§Ãµes**: a definir em grupo (Flyway, Liquibase, none)
+- **Migrações**: a definir em grupo (Flyway, Liquibase, none)
 - **Testes**: a definir (JUnit, Mockito, Testcontainers, etc.)
 
-## 3) Arquitetura (visÃ£o macro)
-- **PadrÃ£o**: camadas clÃ¡ssicas (Controller â†’ Service â†’ Repository).
-- **DTOs**: usados para entrada/saÃ­da no contrato HTTP.
+## 3) Arquitetura (visão macro)
+- **Padrão**: camadas clássicas (Controller → Service → Repository).
+- **DTOs**: usados para entrada/saída no contrato HTTP.
 - **Entidades**: representam o modelo persistido.
-- **DistribuiÃ§Ã£o**: clientes (web/mobile) acessam a API via HTTP/REST; a API persiste dados no banco; painel/admin centraliza o controle operacional.
+- **Distribuição**: clientes (web/mobile) acessam a API via HTTP/REST; a API persiste dados no banco; painel/admin centraliza o controle operacional.
 
-> **Justificativa de sistema distribuÃ­do**  
-> O sistema Ã© distribuÃ­do porque hÃ¡ componentes executando em nÃ³s diferentes: clientes (web/mobile) em dispositivos distintos, API em servidor dedicado e banco de dados separado. A comunicaÃ§Ã£o ocorre via HTTP/REST.
+> **Justificativa de sistema distribuído**  
+> O sistema é distribuído porque há componentes executando em nós diferentes: clientes (web/mobile) em dispositivos distintos, API em servidor dedicado e banco de dados separado. A comunicação ocorre via HTTP/REST.
 
-## 4) OrganizaÃ§Ã£o do cÃ³digo
-Estrutura sugerida (ajuste para o padrÃ£o do repositÃ³rio):
+## 4) Organização do código
+Estrutura sugerida (ajuste para o padrão do repositório):
 
 ```
 src/main/java/br/com/a3/
@@ -42,27 +42,27 @@ src/main/java/br/com/a3/
   exception/
 ```
 
-## 5) ConvenÃ§Ãµes de API
+## 5) Convenções de API
 - **REST**: endpoints nomeados por recursos (`/produtos`, `/categorias`, `/movimentacoes`).
-- **HTTP**: status 200/201/204/400/404/409/500 conforme o cenÃ¡rio.
-- **PaginaÃ§Ã£o**: a definir (ex.: `page`/`size`).
+- **HTTP**: status 200/201/204/400/404/409/500 conforme o cenário.
+- **Paginação**: a definir (ex.: `page`/`size`).
 - **Versionamento**: `/api/v1`.
 
 ## 6) Modelos principais (exemplo)
 > Substitua pelos modelos reais do projeto.
 
-- **Produto**: id, nome, categoria, custo, preÃ§o, estoque, ativo.
-- **MovimentaÃ§Ã£o Financeira**: id, tipo (entrada/saÃ­da), valor, data, descriÃ§Ã£o, categoria.
+- **Produto**: id, nome, categoria, custo, preço, estoque, ativo.
+- **Movimentação Financeira**: id, tipo (entrada/saída), valor, data, descrição, categoria.
 - **Categoria**: id, nome, tipo (produto/financeiro).
 
-## 7) ConfiguraÃ§Ã£o e execuÃ§Ã£o local
+## 7) Configuração e execução local
 
-### 7.1 PrÃ©â€‘requisitos
-- Java instalado na versÃ£o definida.
-- Banco de dados instalado (ou usar H2 em memÃ³ria).
-- `TODO` (Docker, se aplicÃ¡vel).
+### 7.1 Pré‑requisitos
+- Java instalado na versão definida.
+- Banco de dados instalado (ou usar H2 em memória).
+- `TODO` (Docker, se aplicável).
 
-### 7.2 VariÃ¡veis de ambiente
+### 7.2 Variáveis de ambiente
 Crie um arquivo `.env` (ou configure no `application.yml`):
 
 ```
@@ -71,13 +71,13 @@ DB_USER=TODO
 DB_PASS=TODO
 ```
 
-### 7.3 ExecuÃ§Ã£o com Maven
+### 7.3 Execução com Maven
 ```
 ./mvnw spring-boot:run
 ```
 
-## 8) ConfiguraÃ§Ã£o do banco
-EstratÃ©gia de criaÃ§Ã£o de tabelas e migraÃ§Ãµes: **a definir em grupo**.
+## 8) Configuração do banco
+Estratégia de criação de tabelas e migrações: **a definir em grupo**.
 
 Exemplo de `application.yml` (ajuste conforme o projeto):
 ```
@@ -92,9 +92,9 @@ spring:
 ```
 
 ## 9) Tratamento de erros
-PadrÃ£o baseado em `@ControllerAdvice` com respostas JSON no formato **Problem Details (RFC 7807)**:
+Padrão baseado em `@ControllerAdvice` com respostas JSON no formato **Problem Details (RFC 7807)**:
 - Campos: `type`, `title`, `status`, `detail`, `instance`.
-- Para erros de validaÃ§Ã£o, incluir `errors[]` com `field` e `message`.
+- Para erros de validação, incluir `errors[]` com `field` e `message`.
 
 ## 10) Testes
 `TODO` Descrever como rodar os testes.
@@ -105,24 +105,24 @@ Exemplo:
 ```
 
 ## 11) Observabilidade e logs
-`TODO` (ex.: log em JSON, nÃ­vel padrÃ£o, correlaÃ§Ã£o de request).
+`TODO` (ex.: log em JSON, nível padrão, correlação de request).
 
 ## 12) Checklist para entrega
-- [ ] Build e execuÃ§Ã£o local funcionando.
+- [ ] Build e execução local funcionando.
 - [ ] Endpoints principais documentados.
 - [ ] Banco configurado e dados de exemplo.
-- [ ] Testes bÃ¡sicos para regras de negÃ³cio.
+- [ ] Testes básicos para regras de negócio.
 - [ ] README atualizado.
 
-## 13) PrÃ³ximos passos do time
-`TODO` Liste as tarefas abertas (ex.: autenticaÃ§Ã£o, relatÃ³rio financeiro, dashboard, etc.)
+## 13) Próximos passos do time
+`TODO` Liste as tarefas abertas (ex.: autenticação, relatório financeiro, dashboard, etc.)
 
 
 ## MIT License
 <details>
 <summary>Ver conteúdo da licença MIT</summary>
 
-```
+```r
 MIT License
 
 Copyright (c) 2026 Guilherme Ledo
@@ -144,6 +144,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-```
+
+`` 
 
 </details>
