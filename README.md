@@ -150,7 +150,7 @@ Resposta esperada:
 }
 ```
 
-### Relatorios
+### Relatórios
 
 | Metodo | Endpoint | Descricao |
 | --- | --- | --- |
