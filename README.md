@@ -1,124 +1,201 @@
-﻿# Desenvolvimento Spring Boot : A3 Sistemas Distribuídos e Mobile
+# A3 Sistemas Distribuidos e Mobile
 
-> Tema do projeto: **Gestão financeira e controle de produtos**  
-> Objetivo: **criar um software funcional** com as tecnologias abordadas (sobretudo Spring Boot), implementando características de um sistema distribuído e conectando teoria e prática.
+API REST para **gestao financeira e controle de produtos** desenvolvida com Spring Boot.
 
-Este documento descreve como desenvolvemos a API Spring Boot do projeto, quais decisões técnicas foram tomadas e como executar o sistema localmente.  
-Onde houver `TODO`, complete com as decisões reais do grupo.
+Esta versao do projeto ja entrega um MVP funcional com:
 
-## 1) Escopo e responsabilidades
-- **API principal (Spring Boot)**: expõe endpoints REST para gestão financeira e controle de produtos.
-- **Cliente(s)**: front‑end web e/ou app mobile que consomem a API.
-- **Serviços externos**: a definir em grupo (ex.: gateway de pagamento, email, mensageria, etc).
+- CRUD de produtos
+- CRUD de movimentacoes financeiras
+- resumo de dashboard com saldo e estoque
+- validacao de entrada com respostas em Problem Details
+- persistencia em banco H2 em memoria
+- testes de integracao cobrindo os fluxos principais
 
-## 2) Stack e versões
-- **Java**: 25.0.2 (OpenJDK, versão atual estável)
-- **Spring Boot**: 4.0.3 (última versão estável, lançada em 19/02/2026)
-- **Build**: Maven
-- **Banco de dados**: a definir em grupo (PostgreSQL, MySQL, H2, etc.)
-- **Migrações**: a definir em grupo (Flyway, Liquibase, none)
-- **Testes**: a definir (JUnit, Mockito, Testcontainers, etc.)
+## Tecnologias
 
-## 3) Arquitetura (visão macro)
-- **Padrão**: camadas clássicas (Controller → Service → Repository).
-- **DTOs**: usados para entrada/saída no contrato HTTP.
-- **Entidades**: representam o modelo persistido.
-- **Distribuição**: clientes (web/mobile) acessam a API via HTTP/REST; a API persiste dados no banco; painel/admin centraliza o controle operacional.
+- Java 21
+- Spring Boot 4.0.3
+- Spring Web MVC
+- Spring Data JPA
+- Spring Validation
+- H2 Database
+- Maven
+- JUnit 5
 
-> **Justificativa de sistema distribuído**  
-> O sistema é distribuído porque há componentes executando em nós diferentes: clientes (web/mobile) em dispositivos distintos, API em servidor dedicado e banco de dados separado. A comunicação ocorre via HTTP/REST.
+## Arquitetura
 
-## 4) Organização do código
-Estrutura sugerida (ajuste para o padrão do repositório):
+O projeto segue uma arquitetura em camadas:
 
+```text
+controller -> service -> repository -> banco H2
 ```
+
+Organizacao principal do codigo:
+
+```text
 src/main/java/br/com/a3/
-  config/
   controller/
   dto/
+  exception/
   model/
   repository/
   service/
-  exception/
 ```
 
-## 5) Convenções de API
-- **REST**: endpoints nomeados por recursos (`/produtos`, `/categorias`, `/movimentacoes`).
-- **HTTP**: status 200/201/204/400/404/409/500 conforme o cenário.
-- **Paginação**: a definir (ex.: `page`/`size`).
-- **Versionamento**: `/api/v1`.
+## Como executar
 
-## 6) Modelos principais (exemplo)
-> Substitua pelos modelos reais do projeto.
+### Pre-requisitos
 
-- **Produto**: id, nome, categoria, custo, preço, estoque, ativo.
-- **Movimentação Financeira**: id, tipo (entrada/saída), valor, data, descrição, categoria.
-- **Categoria**: id, nome, tipo (produto/financeiro).
+- Java 21 instalado
+- Maven Wrapper do proprio projeto
 
-## 7) Configuração e execução local
+### Subir a aplicacao
 
-### 7.1 Pré‑requisitos
-- Java instalado na versão definida.
-- Banco de dados instalado (ou usar H2 em memória).
-- `TODO` (Docker, se aplicável).
+No Windows:
 
-### 7.2 Variáveis de ambiente
-Crie um arquivo `.env` (ou configure no `application.yml`):
-
-```
-DB_URL=jdbc:TODO
-DB_USER=TODO
-DB_PASS=TODO
+```powershell
+.\mvnw.cmd spring-boot:run
 ```
 
-### 7.3 Execução com Maven
-```
+No Linux/macOS:
+
+```bash
 ./mvnw spring-boot:run
 ```
 
-## 8) Configuração do banco
-Estratégia de criação de tabelas e migrações: **a definir em grupo**.
+API disponivel em:
 
-Exemplo de `application.yml` (ajuste conforme o projeto):
-```
-spring:
-  datasource:
-    url: ${DB_URL}
-    username: ${DB_USER}
-    password: ${DB_PASS}
-  jpa:
-    hibernate:
-      ddl-auto: update
+```text
+http://localhost:8080
 ```
 
-## 9) Tratamento de erros
-Padrão baseado em `@ControllerAdvice` com respostas JSON no formato **Problem Details (RFC 7807)**:
-- Campos: `type`, `title`, `status`, `detail`, `instance`.
-- Para erros de validação, incluir `errors[]` com `field` e `message`.
+Console do H2:
 
-## 10) Testes
-`TODO` Descrever como rodar os testes.
-
-Exemplo:
+```text
+http://localhost:8080/h2-console
 ```
+
+Use os seguintes dados no console:
+
+```text
+JDBC URL: jdbc:h2:mem:a3db
+User Name: sa
+Password:
+```
+
+## Endpoints
+
+### Produtos
+
+| Metodo | Endpoint | Descricao |
+| --- | --- | --- |
+| GET | `/api/v1/produtos` | Lista todos os produtos |
+| GET | `/api/v1/produtos/{id}` | Busca um produto por id |
+| POST | `/api/v1/produtos` | Cria um produto |
+| PUT | `/api/v1/produtos/{id}` | Atualiza um produto |
+| DELETE | `/api/v1/produtos/{id}` | Remove um produto |
+
+Exemplo de payload:
+
+```json
+{
+  "nome": "Notebook Dell",
+  "categoria": "Informatica",
+  "custo": 3200.00,
+  "preco": 4500.00,
+  "estoque": 8,
+  "ativo": true
+}
+```
+
+### Movimentacoes financeiras
+
+| Metodo | Endpoint | Descricao |
+| --- | --- | --- |
+| GET | `/api/v1/movimentacoes` | Lista as movimentacoes |
+| GET | `/api/v1/movimentacoes/{id}` | Busca uma movimentacao por id |
+| POST | `/api/v1/movimentacoes` | Cria uma movimentacao |
+| PUT | `/api/v1/movimentacoes/{id}` | Atualiza uma movimentacao |
+| DELETE | `/api/v1/movimentacoes/{id}` | Remove uma movimentacao |
+
+Exemplo de payload:
+
+```json
+{
+  "tipo": "ENTRADA",
+  "valor": 1500.00,
+  "data": "2026-03-25",
+  "descricao": "Venda do dia",
+  "categoria": "Vendas"
+}
+```
+
+### Dashboard
+
+| Metodo | Endpoint | Descricao |
+| --- | --- | --- |
+| GET | `/api/v1/dashboard/resumo` | Retorna saldo financeiro e estoque |
+
+Resposta esperada:
+
+```json
+{
+  "totalEntradas": 1000.00,
+  "totalSaidas": 250.00,
+  "saldoAtual": 750.00,
+  "totalProdutosAtivos": 1,
+  "totalItensEmEstoque": 10,
+  "valorTotalEstoque": 1200.00,
+  "totalMovimentacoes": 2
+}
+```
+
+## Tratamento de erros
+
+A API responde erros no formato **Problem Details**.
+
+Exemplo para validacao:
+
+```json
+{
+  "type": "https://a3.local/problems/validacao",
+  "title": "Falha de validacao",
+  "status": 400,
+  "detail": "Um ou mais campos sao invalidos.",
+  "instance": "/api/v1/produtos",
+  "errors": [
+    {
+      "field": "nome",
+      "message": "nome e obrigatorio"
+    }
+  ]
+}
+```
+
+## Testes
+
+Para rodar os testes:
+
+No Windows:
+
+```powershell
+.\mvnw.cmd test
+```
+
+No Linux/macOS:
+
+```bash
 ./mvnw test
 ```
 
-## 11) Observabilidade e logs
-`TODO` (ex.: log em JSON, nível padrão, correlação de request).
+## Proximos passos sugeridos
 
-## 12) Checklist para entrega
-- [ ] Build e execução local funcionando.
-- [ ] Endpoints principais documentados.
-- [ ] Banco configurado e dados de exemplo.
-- [ ] Testes básicos para regras de negócio.
-- [ ] README atualizado.
+- adicionar autenticacao e autorizacao
+- criar cadastro de categorias separado
+- integrar com banco persistente, como PostgreSQL
+- adicionar relatorios por periodo
+- documentar a API com OpenAPI/Swagger
 
-## 13) Próximos passos do time
-`TODO` Liste as tarefas abertas (ex.: autenticação, relatório financeiro, dashboard, etc.)
+## Licenca
 
-
-## Licença
-
-Este projeto está licenciado sob a Licença MIT - consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
-
+Este projeto esta sob a licenca MIT. Consulte o arquivo [LICENSE](LICENSE).
