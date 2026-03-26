@@ -150,6 +150,92 @@ Resposta esperada:
 }
 ```
 
+### Relatorios
+
+| Metodo | Endpoint | Descricao |
+| --- | --- | --- |
+| GET | `/api/v1/relatorios/financeiro?dataInicio=YYYY-MM-DD&dataFim=YYYY-MM-DD` | Relatorio financeiro por periodo |
+| GET | `/api/v1/relatorios/produtos` | Relatorio consolidado de produtos por categoria |
+
+Exemplo de requisicao do relatorio financeiro:
+
+```text
+GET /api/v1/relatorios/financeiro?dataInicio=2026-03-01&dataFim=2026-03-31
+```
+
+Resposta esperada:
+
+```json
+{
+  "periodo": {
+    "inicio": "2026-03-01",
+    "fim": "2026-03-31"
+  },
+  "totalEntradas": 15000.00,
+  "totalSaidas": 8500.00,
+  "saldoPeriodo": 6500.00,
+  "quantidadeMovimentacoes": 12,
+  "mediaDiariaEntradas": 483.87,
+  "mediaDiariaSaidas": 274.19,
+  "entradasPorCategoria": [
+    {
+      "categoria": "Vendas",
+      "quantidade": 8,
+      "valorTotal": 12000.00
+    },
+    {
+      "categoria": "Servicos",
+      "quantidade": 4,
+      "valorTotal": 3000.00
+    }
+  ],
+  "saidasPorCategoria": [
+    {
+      "categoria": "Fornecedores",
+      "quantidade": 5,
+      "valorTotal": 5000.00
+    },
+    {
+      "categoria": "Operacional",
+      "quantidade": 3,
+      "valorTotal": 3500.00
+    }
+  ]
+}
+```
+
+Exemplo de resposta do relatorio de produtos:
+
+```json
+{
+  "totalProdutos": 10,
+  "totalProdutosAtivos": 8,
+  "totalProdutosInativos": 2,
+  "totalItensEmEstoque": 150,
+  "valorTotalEstoqueCusto": 25000.00,
+  "valorTotalEstoqueVenda": 38000.00,
+  "margemBrutaEstoque": 13000.00,
+  "porCategoria": [
+    {
+      "categoria": "Informatica",
+      "quantidadeProdutos": 5,
+      "quantidadeItensEstoque": 80,
+      "valorEstoqueCusto": 18000.00,
+      "valorEstoqueVenda": 28000.00
+    },
+    {
+      "categoria": "Perifericos",
+      "quantidadeProdutos": 3,
+      "quantidadeItensEstoque": 70,
+      "valorEstoqueCusto": 7000.00,
+      "valorEstoqueVenda": 10000.00
+    }
+  ]
+}
+```
+
+Os parametros `dataInicio` e `dataFim` sao obrigatorios no relatorio financeiro e devem estar no formato ISO 8601 (YYYY-MM-DD).
+
 ## Tratamento de erros
 
 A API responde erros no formato **Problem Details**.
@@ -193,7 +279,6 @@ No Linux/macOS:
 - adicionar autenticacao e autorizacao
 - criar cadastro de categorias separado
 - integrar com banco persistente, como PostgreSQL
-- adicionar relatorios por periodo
 - documentar a API com OpenAPI/Swagger
 
 ## Licenca

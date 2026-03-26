@@ -66,8 +66,8 @@ class ApiIntegrationTest {
         assertEquals(201, respostaCriacao.statusCode());
         JsonNode produtoCriado = objectMapper.readTree(respostaCriacao.body());
         assertTrue(produtoCriado.get("id").isNumber());
-        assertEquals("Notebook Dell", produtoCriado.get("nome").asText());
-        assertEquals("Informatica", produtoCriado.get("categoria").asText());
+        assertEquals("Notebook Dell", produtoCriado.get("nome").stringValue());
+        assertEquals("Informatica", produtoCriado.get("categoria").stringValue());
         assertEquals(8, produtoCriado.get("estoque").asInt());
         assertTrue(produtoCriado.get("ativo").asBoolean());
 
@@ -76,7 +76,7 @@ class ApiIntegrationTest {
         assertEquals(200, respostaLista.statusCode());
         JsonNode listaProdutos = objectMapper.readTree(respostaLista.body());
         assertEquals(1, listaProdutos.size());
-        assertEquals("Notebook Dell", listaProdutos.get(0).get("nome").asText());
+        assertEquals("Notebook Dell", listaProdutos.get(0).get("nome").stringValue());
     }
 
     @Test
@@ -96,16 +96,16 @@ class ApiIntegrationTest {
         assertEquals(201, respostaCriacao.statusCode());
         JsonNode movimentacaoCriada = objectMapper.readTree(respostaCriacao.body());
         assertTrue(movimentacaoCriada.get("id").isNumber());
-        assertEquals("ENTRADA", movimentacaoCriada.get("tipo").asText());
+        assertEquals("ENTRADA", movimentacaoCriada.get("tipo").stringValue());
         assertEquals(1500.0, movimentacaoCriada.get("valor").asDouble());
-        assertEquals("Vendas", movimentacaoCriada.get("categoria").asText());
+        assertEquals("Vendas", movimentacaoCriada.get("categoria").stringValue());
 
         HttpResponse<String> respostaLista = get("/api/v1/movimentacoes");
 
         assertEquals(200, respostaLista.statusCode());
         JsonNode listaMovimentacoes = objectMapper.readTree(respostaLista.body());
         assertEquals(1, listaMovimentacoes.size());
-        assertEquals("Venda do dia", listaMovimentacoes.get(0).get("descricao").asText());
+        assertEquals("Venda do dia", listaMovimentacoes.get(0).get("descricao").stringValue());
     }
 
     @Test
@@ -125,7 +125,7 @@ class ApiIntegrationTest {
 
         assertEquals(400, resposta.statusCode());
         JsonNode erro = objectMapper.readTree(resposta.body());
-        assertEquals("Falha de validacao", erro.get("title").asText());
+        assertEquals("Falha de validacao", erro.get("title").stringValue());
         assertTrue(erro.get("errors").isArray());
         assertFalse(erro.get("errors").isEmpty());
     }

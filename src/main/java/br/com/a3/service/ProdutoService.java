@@ -56,6 +56,12 @@ public class ProdutoService {
         return produtoRepository.findByAtivoTrue();
     }
 
+    @Transactional(readOnly = true)
+    public List<Produto> listarTodos() {
+        return produtoRepository.findAll();
+    }
+
+
     private Produto buscarEntidade(Long id) {
         return produtoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Produto com id " + id + " nao encontrado"));
