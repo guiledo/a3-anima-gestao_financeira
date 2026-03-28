@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão Financeira — A3</title>
+  <meta name="description" content="Sistema de gestão financeira e controle de produtos">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>💰</text></svg>">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- ═══ Sidebar ═══ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="logo-icon">💰</div>
+          <div>
+            <div class="logo-text">Gestão Financeira</div>
+            <div class="logo-sub">A3 — Painel de Controle</div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
+          <span class="nav-icon">📊</span> Dashboard
+        </div>
+        <div class="nav-item" data-page="produtos" onclick="navigateTo('produtos')">
+          <span class="nav-icon">📦</span> Produtos
+        </div>
+        <div class="nav-item" data-page="movimentacoes" onclick="navigateTo('movimentacoes')">
+          <span class="nav-icon">💸</span> Movimentações
+        </div>
+        <div class="nav-item" data-page="relatorios" onclick="navigateTo('relatorios')">
+          <span class="nav-icon">📈</span> Relatórios
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        Spring Boot 4 &bull; H2 Database<br>A3 — Anima Educação
+      </div>
+    </aside>
+
+    <!-- ═══ Main Content ═══ -->
+    <main class="main-content">
+
+      <!-- ── PAGE: Dashboard ── -->
+      <section class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle">Visão geral do sistema financeiro</p>
+          </div>
+          <button class="btn btn-ghost" onclick="loadDashboard()">🔄 Atualizar</button>
+        </div>
+
+        <div class="kpi-grid" id="kpi-grid">
+          <div class="loading-overlay"><div class="spinner"></div> Carregando resumo...</div>
+        </div>
+      </section>
+
+      <!-- ── PAGE: Produtos ── -->
+      <section class="page" id="page-produtos">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Produtos</h1>
+            <p class="page-subtitle">Gerencie seu catálogo de produtos</p>
+          </div>
+          <button class="btn btn-primary" onclick="openProdutoModal()">✚ Novo Produto</button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📦 Lista de Produtos</span>
+            <span id="produtos-count" class="badge badge-neutral">0 itens</span>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nome</th>
+                  <th>Categoria</th>
+                  <th>Custo</th>
+                  <th>Preço</th>
+                  <th>Estoque</th>
+                  <th>Status</th>
+                  <th style="text-align:right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="produtos-tbody">
+                <tr><td colspan="8"><div class="loading-overlay"><div class="spinner"></div> Carregando...</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── PAGE: Movimentações ── -->
+      <section class="page" id="page-movimentacoes">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Movimentações Financeiras</h1>
+            <p class="page-subtitle">Controle de entradas e saídas</p>
+          </div>
+          <button class="btn btn-primary" onclick="openMovimentacaoModal()">✚ Nova Movimentação</button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">💸 Lista de Movimentações</span>
+            <span id="movimentacoes-count" class="badge badge-neutral">0 itens</span>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Tipo</th>
+                  <th>Descrição</th>
+                  <th>Categoria</th>
+                  <th>Valor</th>
+                  <th>Data</th>
+                  <th style="text-align:right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="movimentacoes-tbody">
+                <tr><td colspan="7"><div class="loading-overlay"><div class="spinner"></div> Carregando...</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── PAGE: Relatórios ── -->
+      <section class="page" id="page-relatorios">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Relatórios</h1>
+            <p class="page-subtitle">Análises financeiras e de produtos</p>
+          </div>
+        </div>
+
+        <!-- Relatório Financeiro -->
+        <div class="report-section">
+          <div class="filter-bar">
+            <div class="form-group">
+              <label class="form-label">Data Início</label>
+              <input type="date" id="rel-data-inicio" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data Fim</label>
+              <input type="date" id="rel-data-fim" class="form-input">
+            </div>
+            <button class="btn btn-primary" onclick="loadRelatorioFinanceiro()">📊 Gerar Relatório Financeiro</button>
+          </div>
+
+          <div id="relatorio-financeiro-content"></div>
+        </div>
+
+        <!-- Relatório de Produtos -->
+        <div class="report-section">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📦 Relatório de Produtos</span>
+              <button class="btn btn-ghost btn-sm" onclick="loadRelatorioProdutos()">🔄 Atualizar</button>
+            </div>
+            <div class="card-body" id="relatorio-produtos-content">
+              <div class="loading-overlay"><div class="spinner"></div> Clique em atualizar para gerar</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ═══ Modal ═══ -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title">Modal</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- ═══ Toast Container ═══ -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

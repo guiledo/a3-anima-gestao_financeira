@@ -13,7 +13,7 @@ Esta versao do projeto ja entrega um MVP funcional com:
 
 ## Tecnologias
 
-- Java 21
+- Java 25
 - Spring Boot 4.0.3
 - Spring Web MVC
 - Spring Data JPA
@@ -46,7 +46,7 @@ src/main/java/br/com/a3/
 
 ### Pre-requisitos
 
-- Java 21 instalado
+- Java 25 instalado
 - Maven Wrapper do proprio projeto
 
 ### Subir a aplicacao
