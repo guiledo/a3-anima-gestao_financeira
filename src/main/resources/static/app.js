@@ -11,14 +11,34 @@ function navigateTo(page) {
   document.getElementById(`page-${page}`).classList.add('active');
   document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
 
-  // Load data on navigate
   if (page === 'dashboard') loadDashboard();
   if (page === 'produtos') loadProdutos();
   if (page === 'movimentacoes') loadMovimentacoes();
+  if (page === 'historico') loadHistorico();
 }
+
+// ─── Global Error & Event Logger ───
+window.appLogs = [];
+function addAppLog(type, message) {
+  const time = new Date().toLocaleTimeString('pt-BR');
+  window.appLogs.unshift({ time, type, message });
+  if (window.appLogs.length > 100) window.appLogs.pop();
+  renderLogs();
+}
+
+window.onerror = function(msg, url, line, col, error) {
+  addAppLog('error', `JS Error: ${msg} na linha ${line}`);
+  return false;
+};
+window.addEventListener('unhandledrejection', function(event) {
+  addAppLog('error', `Promessa Rejeitada: ${event.reason}`);
+});
 
 // ─── Toast Notifications ───
 function showToast(message, type = 'info') {
+  if (type === 'error') addAppLog('error', message);
+  if (type === 'success') addAppLog('info', message);
+
   const icons = { success: '✅', error: '❌', info: 'ℹ️' };
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
@@ -601,6 +621,97 @@ async function loadRelatorioProdutos() {
   }
 }
 
+// ═════════════════════════════════════════════════════════
+//  HISTÓRICO & LOGS
+// ═════════════════════════════════════════════════════════
+function switchHistoricoTab(tabId) {
+  document.getElementById('view-timeline').style.display = tabId === 'timeline' ? 'block' : 'none';
+  document.getElementById('view-logs').style.display = tabId === 'logs' ? 'block' : 'none';
+  document.getElementById('btn-tab-timeline').className = tabId === 'timeline' ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('btn-tab-logs').className = tabId === 'logs' ? 'btn btn-primary' : 'btn btn-ghost';
+}
+
+function clearLogs() {
+  window.appLogs = [];
+  renderLogs();
+  showToast('Logs limpos com sucesso!', 'success');
+}
+
+function clearTimeline() {
+  const timelineEl = document.getElementById('historico-timeline');
+  if (timelineEl) {
+    timelineEl.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🗑️</div>
+        <div class="empty-state-text">A linha do tempo foi limpa da interface.</div>
+        <div class="empty-state-sub">Clique em "Atualizar" para recarregar as movimentações do banco.</div>
+      </div>`;
+  }
+  showToast('Linha do tempo limpa (apenas visualmente).', 'info');
+}
+
+function renderLogs() {
+  const consoleEl = document.getElementById('log-console');
+  if (!consoleEl) return;
+  if (window.appLogs.length === 0) {
+    consoleEl.innerHTML = '<div class="log-entry info"><span class="log-time">--:--:--</span> Nenhum log registrado até o momento.</div>';
+    return;
+  }
+  
+  consoleEl.innerHTML = window.appLogs.map(log => {
+    let cssClass = log.type; // error, info, warn
+    return `<div class="log-entry ${cssClass}">
+      <span class="log-time">[${log.time}]</span> ${escapeHtml(log.message)}
+    </div>`;
+  }).join('');
+}
+
+async function loadHistorico() {
+  const timelineEl = document.getElementById('historico-timeline');
+  timelineEl.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando histórico...</div>';
+  renderLogs();
+
+  try {
+    const movs = await apiGet('/movimentacoes');
+    
+    // Sort array by ID descending (pretending it is recent first) if date is the same
+    movs.sort((a, b) => b.id - a.id);
+
+    if (movs.length === 0) {
+      timelineEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">📭</div>
+          <div class="empty-state-text">Nenhum evento registrado no histórico.</div>
+        </div>`;
+      return;
+    }
+
+    timelineEl.innerHTML = movs.map(m => {
+      const isEntrada = m.tipo === 'ENTRADA';
+      const icon = isEntrada ? '📈' : '📉';
+      const iconClass = isEntrada ? 'entrada' : 'saida';
+      const colorText = isEntrada ? 'text-success' : 'text-danger';
+
+      return `
+        <div class="timeline-item">
+          <div class="timeline-icon ${iconClass}">${icon}</div>
+          <div class="timeline-content">
+            <div class="timeline-date">${formatDate(m.data)} — Movimentação #${m.id}</div>
+            <div class="timeline-title">${escapeHtml(m.descricao)}</div>
+            <div class="timeline-details">
+              Categoria: <strong>${escapeHtml(m.categoria)}</strong> &bull; Valor: <strong class="${colorText}">${formatCurrency(m.valor)}</strong>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    addAppLog('info', 'Histórico e Timeline atualizados com sucesso.');
+  } catch (err) {
+    timelineEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Falha ao carregar linha do tempo</div><div class="empty-state-sub">${err.message}</div></div>`;
+  }
+}
+
 // ─── Utility ───
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -620,7 +731,45 @@ function setDefaultDates() {
 document.addEventListener('DOMContentLoaded', () => {
   setDefaultDates();
   loadDashboard();
+  checkSystemHealth();
 });
+
+// ─── Health Check ───
+async function checkSystemHealth() {
+  const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  const div = document.getElementById('status-indicator');
+  
+  if (!dot) return;
+
+  dot.textContent = '🟡';
+  text.textContent = 'Verificando...';
+  text.style.color = 'var(--text-primary)';
+  div.style.background = 'rgba(255,255,255,0.05)';
+  
+  try {
+    const res = await apiGet('/health');
+    if (res.api === 'ONLINE' && res.database === 'ONLINE') {
+      dot.textContent = '🟢';
+      text.textContent = 'Sistemas Online';
+      text.style.color = 'var(--accent-success)';
+      div.style.background = 'rgba(16, 185, 129, 0.1)';
+    } else {
+      dot.textContent = '🔴';
+      text.textContent = 'Banco Offline';
+      text.style.color = 'var(--accent-warning)';
+      div.style.background = 'rgba(245, 158, 11, 0.1)';
+      addAppLog('warn', `Problema no Banco de Dados: ${res.database_error || 'Desconhecido'}`);
+    }
+  } catch (err) {
+    dot.textContent = '🔴';
+    text.textContent = 'API Offline';
+    text.style.color = 'var(--accent-danger)';
+    div.style.background = 'rgba(239, 68, 68, 0.1)';
+    addAppLog('error', `Sem conexão com servidor backend (API).`);
+  }
+}
+setInterval(checkSystemHealth, 30000);
 
 // ─── Keyboard shortcut: Escape to close modal ───
 document.addEventListener('keydown', (e) => {

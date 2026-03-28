@@ -35,9 +35,15 @@
         <div class="nav-item" data-page="relatorios" onclick="navigateTo('relatorios')">
           <span class="nav-icon">📈</span> Relatórios
         </div>
+        <div class="nav-item" data-page="historico" onclick="navigateTo('historico')">
+          <span class="nav-icon">📜</span> Histórico & Logs
+        </div>
       </nav>
 
       <div class="sidebar-footer">
+        <div id="status-indicator" onclick="checkSystemHealth()" style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:8px; padding:6px; border-radius:4px; background:rgba(255,255,255,0.05); transition:0.3s" title="Clique para re-testar agora">
+          <span id="status-dot">🟡</span> <span id="status-text" style="font-weight:600">Conectando...</span>
+        </div>
         Spring Boot 4 &bull; H2 Database<br>A3 — Anima Educação
       </div>
     </aside>
@@ -168,6 +174,48 @@
             </div>
             <div class="card-body" id="relatorio-produtos-content">
               <div class="loading-overlay"><div class="spinner"></div> Clique em atualizar para gerar</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── PAGE: Histórico & Logs ── -->
+      <section class="page" id="page-historico">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Histórico & Logs</h1>
+            <p class="page-subtitle">Rastreabilidade de ações e erros do sistema</p>
+          </div>
+          <button class="btn btn-ghost" onclick="loadHistorico()">🔄 Atualizar</button>
+        </div>
+
+        <div class="tabs-container" style="margin-bottom: 20px; display: flex; gap: 10px;">
+          <button class="btn btn-primary" id="btn-tab-timeline" onclick="switchHistoricoTab('timeline')">⏱️ Timeline de Movimentações</button>
+          <button class="btn btn-ghost" id="btn-tab-logs" onclick="switchHistoricoTab('logs')">⚠️ Console de Logs</button>
+        </div>
+
+        <!-- Tab: Timeline -->
+        <div id="view-timeline" class="card" style="display: block;">
+          <div class="card-header">
+            <span class="card-title">⏱️ Linha do Tempo</span>
+            <button class="btn btn-ghost btn-sm" onclick="clearTimeline()">🗑️ Limpar Timeline</button>
+          </div>
+          <div class="card-body">
+            <div class="timeline" id="historico-timeline">
+              <div class="loading-overlay"><div class="spinner"></div> Carregando histórico...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Logs -->
+        <div id="view-logs" class="card" style="display: none;">
+          <div class="card-header">
+            <span class="card-title">⚠️ Monitoramento de Erros</span>
+            <button class="btn btn-ghost btn-sm" onclick="clearLogs()">🗑️ Limpar Console</button>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <div class="log-console" id="log-console">
+              <div class="log-entry info">Sistema iniciado... Monitorando erros.</div>
             </div>
           </div>
         </div>

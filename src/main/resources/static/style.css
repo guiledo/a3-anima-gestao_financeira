@@ -201,6 +201,7 @@ body::before {
   letter-spacing: -0.5px;
   background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -654,3 +655,77 @@ tbody tr:last-child td { border-bottom: none; }
 .gap-2 { gap: 8px; }
 .flex { display: flex; }
 .items-center { align-items: center; }
+
+/* ─── Timeline ─── */
+.timeline {
+  position: relative;
+  padding: 20px 0;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 19px;
+  width: 2px;
+  background: var(--border-hover);
+}
+.timeline-item {
+  position: relative;
+  padding-left: 50px;
+  margin-bottom: 24px;
+}
+.timeline-item:last-child { margin-bottom: 0; }
+.timeline-icon {
+  position: absolute;
+  left: 0; top: 0;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 4px solid var(--bg-primary);
+  font-size: 16px;
+  z-index: 1;
+}
+.timeline-icon.entrada { color: var(--accent-success); border-color: rgba(16, 185, 129, 0.1); }
+.timeline-icon.saida { color: var(--accent-danger); border-color: rgba(239, 68, 68, 0.1); }
+.timeline-content {
+  background: var(--bg-card-hover);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+.timeline-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.timeline-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.timeline-details {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ─── Log Console ─── */
+.log-console {
+  background: #000;
+  color: #0f0;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 12px;
+  padding: 16px;
+  height: 400px;
+  overflow-y: auto;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.log-entry { margin-bottom: 6px; padding: 4px 0; border-bottom: 1px dashed rgba(255,255,255,0.1); word-wrap: break-word; }
+.log-entry.error { color: #ff5555; }
+.log-entry.warn { color: #ffb86c; }
+.log-entry.info { color: #8be9fd; }
+.log-time { color: #6272a4; margin-right: 8px; }

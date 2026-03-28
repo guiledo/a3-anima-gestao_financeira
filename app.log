@@ -9,7 +9,7 @@
 [INFO] 
 [INFO] --- resources:3.3.1:resources (default-resources) @ a3-anima-gestao_financeira ---
 [INFO] Copying 1 resource from src\main\resources to target\classes
-[INFO] Copying 3 resources from src\main\resources to target\classes
+[INFO] Copying 4 resources from src\main\resources to target\classes
 [INFO] 
 [INFO] --- compiler:3.14.1:compile (default-compile) @ a3-anima-gestao_financeira ---
 [INFO] Nothing to compile - all classes are up to date.
@@ -35,21 +35,21 @@
 
  :: Spring Boot ::                (v4.0.3)
 
-2026-03-27T21:19:37.662-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : Starting A3AnimaGestaoFinanceiraApplication using Java 25.0.2 with PID 13592 (C:\Users\Wellinton_Voss\OneDrive\Área de Trabalho\A3\a3-anima-gestao_financeira\target\classes started by Wellinton_Voss in C:\Users\Wellinton_Voss\OneDrive\Área de Trabalho\A3\a3-anima-gestao_financeira)
-2026-03-27T21:19:37.666-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : No active profile set, falling back to 1 default profile: "default"
-2026-03-27T21:19:38.594-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-03-27T21:19:38.693-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 83 ms. Found 2 JPA repository interfaces.
-2026-03-27T21:19:39.409-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-03-27T21:19:39.432-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-03-27T21:19:39.432-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
-2026-03-27T21:19:39.663-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1916 ms
-2026-03-27T21:19:39.952-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-03-27T21:19:40.063-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.4.Final
-2026-03-27T21:19:40.857-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-03-27T21:19:40.916-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-03-27T21:19:41.217-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:a3db user=SA
-2026-03-27T21:19:41.218-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-03-27T21:19:41.310-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+2026-03-27T22:01:19.682-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : Starting A3AnimaGestaoFinanceiraApplication using Java 25.0.2 with PID 7700 (C:\Users\Wellinton_Voss\OneDrive\Área de Trabalho\A3\a3-anima-gestao_financeira\target\classes started by Wellinton_Voss in C:\Users\Wellinton_Voss\OneDrive\Área de Trabalho\A3\a3-anima-gestao_financeira)
+2026-03-27T22:01:19.686-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : No active profile set, falling back to 1 default profile: "default"
+2026-03-27T22:01:20.447-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-27T22:01:20.525-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 67 ms. Found 2 JPA repository interfaces.
+2026-03-27T22:01:21.089-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-03-27T22:01:21.107-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-27T22:01:21.108-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-03-27T22:01:21.187-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1438 ms
+2026-03-27T22:01:21.407-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-27T22:01:21.466-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.4.Final
+2026-03-27T22:01:21.998-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-27T22:01:22.039-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-03-27T22:01:22.245-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:a3db user=SA
+2026-03-27T22:01:22.247-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-03-27T22:01:22.315-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
 	Database JDBC URL [jdbc:h2:mem:a3db]
 	Database driver: H2 JDBC Driver
 	Database dialect: H2Dialect
@@ -61,10 +61,25 @@
 	Pool: DataSourceConnectionProvider
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2026-03-27T21:19:42.601-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-03-27T21:19:42.698-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-03-27T21:19:42.811-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-03-27T21:19:44.223-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page: class path resource [static/index.html]
-2026-03-27T21:19:44.571-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] o.s.b.h.a.H2ConsoleAutoConfiguration     : H2 console available at '/h2-console'. Database available at 'jdbc:h2:mem:a3db'
-2026-03-27T21:19:44.780-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-03-27T21:19:44.786-03:00  INFO 13592 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : Started A3AnimaGestaoFinanceiraApplication in 7.745 seconds (process running for 8.302)
+2026-03-27T22:01:23.560-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-27T22:01:23.679-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-27T22:01:23.805-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-27T22:01:25.295-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page: class path resource [static/index.html]
+2026-03-27T22:01:25.732-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] o.s.b.h.a.H2ConsoleAutoConfiguration     : H2 console available at '/h2-console'. Database available at 'jdbc:h2:mem:a3db'
+2026-03-27T22:01:25.864-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-03-27T22:01:25.872-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : Started A3AnimaGestaoFinanceiraApplication in 6.693 seconds (process running for 7.198)
+2026-03-27T22:01:47.889-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-27T22:01:47.890-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-03-27T22:01:47.893-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 3 ms
+2026-03-27T22:06:55.111-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [ionShutdownHook] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-03-27T22:06:55.127-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-03-27T22:06:55.132-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [ionShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-03-27T22:06:55.136-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-03-27T22:06:55.139-03:00  INFO 7700 --- [a3-anima-gestao_financeira] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  05:38 min
+[INFO] Finished at: 2026-03-27T22:06:55-03:00
+[INFO] ------------------------------------------------------------------------
+Deseja finalizar o arquivo em lotes (S/N)? 

@@ -10,6 +10,7 @@ Esta versao do projeto ja entrega um MVP funcional com:
 - validacao de entrada com respostas em Problem Details
 - persistencia em banco H2 em memoria
 - testes de integracao cobrindo os fluxos principais
+- monitoramento de erros (logs) e histórico visual em timeline
 
 ## Tecnologias
 
