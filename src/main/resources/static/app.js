@@ -2,7 +2,57 @@
 //  Gestão Financeira A3 — Frontend JavaScript
 // ═══════════════════════════════════════════════════════════
 
-const API = 'http://localhost:8080/api/v1';
+const API = '/api/v1';
+const MOBILE_BREAKPOINT = 768;
+
+function isMobileView() {
+  return window.innerWidth <= MOBILE_BREAKPOINT;
+}
+
+function updateMobilePageTitle(page) {
+  const title = document.getElementById('mobile-page-title');
+  if (!title) return;
+
+  const labels = {
+    dashboard: 'Dashboard',
+    produtos: 'Produtos',
+    movimentacoes: 'Movimentacoes',
+    relatorios: 'Relatorios',
+    historico: 'Historico e Logs'
+  };
+
+  title.textContent = labels[page] || 'Gestao Financeira';
+}
+
+function setSidebarOpen(open) {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  const menuButton = document.getElementById('mobile-menu-btn');
+
+  if (!sidebar || !backdrop) return;
+
+  sidebar.classList.toggle('open', open);
+  backdrop.classList.toggle('active', open);
+  document.body.classList.toggle('sidebar-open', open);
+
+  if (menuButton) {
+    menuButton.setAttribute('aria-expanded', String(open));
+  }
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const isOpen = sidebar?.classList.contains('open');
+  setSidebarOpen(!isOpen);
+}
+
+function closeSidebar() {
+  setSidebarOpen(false);
+}
+
+function syncResponsiveLayout() {
+  if (!isMobileView()) closeSidebar();
+}
 
 // ─── Navigation ───
 function navigateTo(page) {
@@ -10,6 +60,8 @@ function navigateTo(page) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
   document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+  updateMobilePageTitle(page);
+  if (isMobileView()) closeSidebar();
 
   if (page === 'dashboard') loadDashboard();
   if (page === 'produtos') loadProdutos();
@@ -730,9 +782,12 @@ function setDefaultDates() {
 // ─── Init ───
 document.addEventListener('DOMContentLoaded', () => {
   setDefaultDates();
+  updateMobilePageTitle('dashboard');
+  syncResponsiveLayout();
   loadDashboard();
   checkSystemHealth();
 });
+window.addEventListener('resize', syncResponsiveLayout);
 
 // ─── Health Check ───
 async function checkSystemHealth() {
@@ -773,5 +828,8 @@ setInterval(checkSystemHealth, 30000);
 
 // ─── Keyboard shortcut: Escape to close modal ───
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') {
+    closeModal();
+    closeSidebar();
+  }
 });

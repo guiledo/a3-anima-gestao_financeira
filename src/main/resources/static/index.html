@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gestão Financeira — A3</title>
   <meta name="description" content="Sistema de gestão financeira e controle de produtos">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=20260401-3">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>💰</text></svg>">
 </head>
 <body>
@@ -49,7 +49,25 @@
     </aside>
 
     <!-- ═══ Main Content ═══ -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
     <main class="main-content">
+      <header class="mobile-topbar">
+        <button
+          class="mobile-menu-btn"
+          id="mobile-menu-btn"
+          type="button"
+          aria-label="Abrir menu"
+          aria-controls="sidebar"
+          aria-expanded="false"
+          onclick="toggleSidebar()">
+          ☰
+        </button>
+        <div class="mobile-topbar-brand">
+          <div class="mobile-topbar-title" id="mobile-page-title">Dashboard</div>
+          <div class="mobile-topbar-sub">A3 • Painel de Controle</div>
+        </div>
+      </header>
 
       <!-- ── PAGE: Dashboard ── -->
       <section class="page active" id="page-dashboard">
@@ -239,6 +257,6 @@
   <!-- ═══ Toast Container ═══ -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=20260401-3"></script>
 </body>
 </html>
