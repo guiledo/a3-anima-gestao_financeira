@@ -9,6 +9,7 @@ import br.com.a3.dto.movimentacao.MovimentacaoFinanceiraRequest;
 import br.com.a3.dto.movimentacao.MovimentacaoFinanceiraResponse;
 import br.com.a3.exception.RecursoNaoEncontradoException;
 import br.com.a3.model.MovimentacaoFinanceira;
+import br.com.a3.model.TipoPagamento;
 import br.com.a3.repository.MovimentacaoFinanceiraRepository;
 
 @Service
@@ -58,11 +59,26 @@ public class MovimentacaoFinanceiraService {
     }
 
     private void aplicarDados(MovimentacaoFinanceira movimentacao, MovimentacaoFinanceiraRequest request) {
+        validarPagamento(request);
         movimentacao.setTipo(request.tipo());
         movimentacao.setValor(request.valor());
         movimentacao.setData(request.data());
         movimentacao.setDescricao(request.descricao());
+        movimentacao.setCliente(request.cliente());
         movimentacao.setCategoria(request.categoria());
+        movimentacao.setTipoPagamento(request.tipoPagamento());
+        movimentacao.setQuantidadeParcelas(request.quantidadeParcelas());
+        movimentacao.setDataPrimeiroVencimento(request.dataPrimeiroVencimento());
+    }
+
+    private void validarPagamento(MovimentacaoFinanceiraRequest request) {
+        if (request.tipoPagamento() == TipoPagamento.AVISTA && request.quantidadeParcelas() != 1) {
+            throw new IllegalArgumentException("Pagamento a vista deve ter exatamente 1 parcela.");
+        }
+
+        if (request.tipoPagamento() == TipoPagamento.PARCELADO && request.quantidadeParcelas() < 2) {
+            throw new IllegalArgumentException("Pagamento parcelado deve ter pelo menos 2 parcelas.");
+        }
     }
 
     private MovimentacaoFinanceiraResponse toResponse(MovimentacaoFinanceira movimentacao) {
@@ -72,6 +88,10 @@ public class MovimentacaoFinanceiraService {
                 movimentacao.getValor(),
                 movimentacao.getData(),
                 movimentacao.getDescricao(),
-                movimentacao.getCategoria());
+                movimentacao.getCliente(),
+                movimentacao.getCategoria(),
+                movimentacao.getTipoPagamento(),
+                movimentacao.getQuantidadeParcelas(),
+                movimentacao.getDataPrimeiroVencimento());
     }
 }
