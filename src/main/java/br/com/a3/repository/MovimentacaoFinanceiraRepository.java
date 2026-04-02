@@ -30,4 +30,6 @@ public interface MovimentacaoFinanceiraRepository extends JpaRepository<Moviment
     List<MovimentacaoFinanceira> findByDataBetweenAndTipo(LocalDate inicio, LocalDate fim, TipoMovimentacao tipo);
 
     List<MovimentacaoFinanceira> findByDataBetween(LocalDate inicio, LocalDate fim);
+
+    List<MovimentacaoFinanceira> findByTipoOrderByClienteAscDataPrimeiroVencimentoAscIdAsc(TipoMovimentacao tipo);
 }

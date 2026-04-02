@@ -18,6 +18,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 
 import br.com.a3.model.MovimentacaoFinanceira;
 import br.com.a3.model.Produto;
+import br.com.a3.model.TipoPagamento;
 import br.com.a3.model.TipoMovimentacao;
 import br.com.a3.repository.MovimentacaoFinanceiraRepository;
 import br.com.a3.repository.ProdutoRepository;
@@ -49,13 +50,17 @@ class RelatorioIntegrationTest {
     void deveGerarRelatorioFinanceiroComTotaisEMedias() throws Exception {
         LocalDate hoje = LocalDate.now();
         movimentacaoFinanceiraRepository.save(
-                criarMovimentacao(TipoMovimentacao.ENTRADA, "5000.00", "Venda produto A", "Vendas", hoje));
+                criarMovimentacao(TipoMovimentacao.ENTRADA, "5000.00", "Venda produto A", "Cliente A", "Vendas",
+                        hoje, TipoPagamento.AVISTA, 1, hoje));
         movimentacaoFinanceiraRepository.save(
-                criarMovimentacao(TipoMovimentacao.ENTRADA, "3000.00", "Venda produto B", "Vendas", hoje));
+                criarMovimentacao(TipoMovimentacao.ENTRADA, "3000.00", "Venda produto B", "Cliente B", "Vendas",
+                        hoje, TipoPagamento.PARCELADO, 3, hoje));
         movimentacaoFinanceiraRepository.save(
-                criarMovimentacao(TipoMovimentacao.SAIDA, "1200.00", "Compra de material", "Compras", hoje));
+                criarMovimentacao(TipoMovimentacao.SAIDA, "1200.00", "Compra de material", "Fornecedor A", "Compras",
+                        hoje, TipoPagamento.AVISTA, 1, hoje));
         movimentacaoFinanceiraRepository.save(
-                criarMovimentacao(TipoMovimentacao.SAIDA, "800.00", "Pagamento fornecedor", "Fornecedores", hoje));
+                criarMovimentacao(TipoMovimentacao.SAIDA, "800.00", "Pagamento fornecedor", "Fornecedor B",
+                        "Fornecedores", hoje, TipoPagamento.AVISTA, 1, hoje));
 
         String dataInicio = hoje.minusDays(1).toString();
         String dataFim = hoje.toString();
@@ -92,7 +97,8 @@ class RelatorioIntegrationTest {
     void deveRetornarRelatorioFinanceiroVazioQuandoNaoHouverMovimentacoesNoPeriodo() throws Exception {
         LocalDate hoje = LocalDate.now();
         movimentacaoFinanceiraRepository.save(
-                criarMovimentacao(TipoMovimentacao.ENTRADA, "1000.00", "Venda antiga", "Vendas", hoje.minusMonths(3)));
+                criarMovimentacao(TipoMovimentacao.ENTRADA, "1000.00", "Venda antiga", "Cliente Antigo", "Vendas",
+                        hoje.minusMonths(3), TipoPagamento.AVISTA, 1, hoje.minusMonths(3)));
 
         String dataInicio = hoje.minusDays(7).toString();
         String dataFim = hoje.toString();
@@ -193,13 +199,18 @@ class RelatorioIntegrationTest {
     }
 
     private MovimentacaoFinanceira criarMovimentacao(TipoMovimentacao tipo, String valor, String descricao,
-            String categoria, LocalDate data) {
+            String cliente, String categoria, LocalDate data, TipoPagamento tipoPagamento, int quantidadeParcelas,
+            LocalDate dataPrimeiroVencimento) {
         MovimentacaoFinanceira movimentacao = new MovimentacaoFinanceira();
         movimentacao.setTipo(tipo);
         movimentacao.setValor(new BigDecimal(valor));
         movimentacao.setData(data);
         movimentacao.setDescricao(descricao);
+        movimentacao.setCliente(cliente);
         movimentacao.setCategoria(categoria);
+        movimentacao.setTipoPagamento(tipoPagamento);
+        movimentacao.setQuantidadeParcelas(quantidadeParcelas);
+        movimentacao.setDataPrimeiroVencimento(dataPrimeiroVencimento);
         return movimentacao;
     }
 }

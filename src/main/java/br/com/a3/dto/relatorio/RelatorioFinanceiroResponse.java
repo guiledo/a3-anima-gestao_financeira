@@ -12,5 +12,8 @@ public record RelatorioFinanceiroResponse(
         BigDecimal mediaDiariaEntradas,
         BigDecimal mediaDiariaSaidas,
         List<MovimentacaoPorCategoriaResponse> entradasPorCategoria,
-        List<MovimentacaoPorCategoriaResponse> saidasPorCategoria) {
+        List<MovimentacaoPorCategoriaResponse> saidasPorCategoria,
+        long totalClientesComDebitos,
+        BigDecimal totalDevidoPorClientesNoPeriodo,
+        List<FechamentoClienteResponse> fechamentoPorCliente) {
 }

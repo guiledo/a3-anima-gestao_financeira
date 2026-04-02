@@ -50,6 +50,7 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler({
+            IllegalArgumentException.class,
             HttpMessageNotReadableException.class,
             MethodArgumentTypeMismatchException.class,
             MissingServletRequestParameterException.class
@@ -57,7 +58,9 @@ public class ApiExceptionHandler {
     public ResponseEntity<ProblemDetail> handleBadRequest(Exception ex, HttpServletRequest request) {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problemDetail.setTitle("Requisicao invalida");
-        problemDetail.setDetail("O corpo ou os parametros da requisicao nao puderam ser processados.");
+        problemDetail.setDetail(ex instanceof IllegalArgumentException
+                ? ex.getMessage()
+                : "O corpo ou os parametros da requisicao nao puderam ser processados.");
         problemDetail.setType(URI.create("https://a3.local/problems/requisicao-invalida"));
         problemDetail.setInstance(URI.create(request.getRequestURI()));
         return ResponseEntity.badRequest().body(problemDetail);

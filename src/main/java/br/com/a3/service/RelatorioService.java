@@ -3,14 +3,21 @@ package br.com.a3.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import br.com.a3.dto.relatorio.DebitoMensalClienteResponse;
+import br.com.a3.dto.relatorio.FechamentoClienteMovimentacaoResponse;
+import br.com.a3.dto.relatorio.FechamentoClienteResponse;
 import br.com.a3.dto.relatorio.MovimentacaoPorCategoriaResponse;
 import br.com.a3.dto.relatorio.PeriodoResponse;
 import br.com.a3.dto.relatorio.ProdutoPorCategoriaResponse;
@@ -24,6 +31,8 @@ import br.com.a3.repository.MovimentacaoFinanceiraRepository;
 @Service
 @Transactional(readOnly = true)
 public class RelatorioService {
+
+    private static final DateTimeFormatter COMPETENCIA_FORMATTER = DateTimeFormatter.ofPattern("MM/yyyy");
 
     private final MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository;
     private final ProdutoService produtoService;
@@ -51,6 +60,10 @@ public class RelatorioService {
                 movimentacaoFinanceiraRepository.findByDataBetweenAndTipo(inicio, fim, TipoMovimentacao.ENTRADA));
         List<MovimentacaoPorCategoriaResponse> saidasPorCategoria = agruparPorCategoria(
                 movimentacaoFinanceiraRepository.findByDataBetweenAndTipo(inicio, fim, TipoMovimentacao.SAIDA));
+        List<FechamentoClienteResponse> fechamentoPorCliente = gerarFechamentoPorCliente(inicio, fim);
+        BigDecimal totalDevidoPorClientesNoPeriodo = fechamentoPorCliente.stream()
+                .map(FechamentoClienteResponse::valorDevidoNoPeriodo)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return new RelatorioFinanceiroResponse(
                 new PeriodoResponse(inicio, fim),
@@ -61,7 +74,10 @@ public class RelatorioService {
                 mediaDiariaEntradas,
                 mediaDiariaSaidas,
                 entradasPorCategoria,
-                saidasPorCategoria);
+                saidasPorCategoria,
+                fechamentoPorCliente.size(),
+                totalDevidoPorClientesNoPeriodo,
+                fechamentoPorCliente);
     }
 
     public RelatorioProdutosResponse gerarRelatorioProdutos() {
@@ -122,6 +138,107 @@ public class RelatorioService {
                 .toList();
     }
 
+    private List<FechamentoClienteResponse> gerarFechamentoPorCliente(LocalDate inicio, LocalDate fim) {
+        Map<String, List<MovimentacaoFinanceira>> porCliente = movimentacaoFinanceiraRepository
+                .findByTipoOrderByClienteAscDataPrimeiroVencimentoAscIdAsc(TipoMovimentacao.ENTRADA)
+                .stream()
+                .collect(Collectors.groupingBy(MovimentacaoFinanceira::getCliente));
+
+        return porCliente.entrySet().stream()
+                .map(entrada -> montarFechamentoCliente(entrada.getKey(), entrada.getValue(), inicio, fim))
+                .filter(fechamento -> fechamento.valorDevidoNoPeriodo().compareTo(BigDecimal.ZERO) > 0)
+                .sorted((a, b) -> {
+                    int valorCompare = b.valorDevidoNoPeriodo().compareTo(a.valorDevidoNoPeriodo());
+                    return valorCompare != 0 ? valorCompare : a.cliente().compareToIgnoreCase(b.cliente());
+                })
+                .toList();
+    }
+
+    private FechamentoClienteResponse montarFechamentoCliente(String cliente, List<MovimentacaoFinanceira> movimentacoes,
+            LocalDate inicio, LocalDate fim) {
+        Map<YearMonth, BigDecimal> debitosMensais = new TreeMap<>();
+        List<MovimentacaoFinanceira> movimentacoesRelevantes = new ArrayList<>();
+        LocalDate proximoVencimento = null;
+
+        for (MovimentacaoFinanceira movimentacao : movimentacoes) {
+            boolean possuiParcelaNoPeriodo = false;
+
+            for (ParcelaProgramada parcela : gerarParcelas(movimentacao)) {
+                if (parcela.vencimento().isBefore(inicio) || parcela.vencimento().isAfter(fim)) {
+                    continue;
+                }
+
+                YearMonth competencia = YearMonth.from(parcela.vencimento());
+                debitosMensais.merge(competencia, parcela.valor(), BigDecimal::add);
+                possuiParcelaNoPeriodo = true;
+
+                if (proximoVencimento == null || parcela.vencimento().isBefore(proximoVencimento)) {
+                    proximoVencimento = parcela.vencimento();
+                }
+            }
+
+            if (possuiParcelaNoPeriodo) {
+                movimentacoesRelevantes.add(movimentacao);
+            }
+        }
+
+        BigDecimal valorTotalMovimentado = movimentacoesRelevantes.stream()
+                .map(MovimentacaoFinanceira::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal valorDevidoNoPeriodo = debitosMensais.values().stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new FechamentoClienteResponse(
+                cliente,
+                valorTotalMovimentado,
+                valorDevidoNoPeriodo,
+                movimentacoesRelevantes.size(),
+                proximoVencimento,
+                debitosMensais.entrySet().stream()
+                        .map(entry -> new DebitoMensalClienteResponse(
+                                entry.getKey().format(COMPETENCIA_FORMATTER),
+                                entry.getValue()))
+                        .toList(),
+                movimentacoesRelevantes.stream()
+                        .sorted((a, b) -> b.getData().compareTo(a.getData()))
+                        .map(this::toFechamentoMovimentacao)
+                        .toList());
+    }
+
+    private List<ParcelaProgramada> gerarParcelas(MovimentacaoFinanceira movimentacao) {
+        int quantidadeParcelas = movimentacao.getQuantidadeParcelas() == null || movimentacao.getQuantidadeParcelas() < 1
+                ? 1
+                : movimentacao.getQuantidadeParcelas();
+        BigDecimal valorBase = movimentacao.getValor()
+                .divide(BigDecimal.valueOf(quantidadeParcelas), 2, RoundingMode.DOWN);
+        BigDecimal restante = movimentacao.getValor()
+                .subtract(valorBase.multiply(BigDecimal.valueOf(quantidadeParcelas)));
+
+        List<ParcelaProgramada> parcelas = new ArrayList<>();
+        for (int indice = 0; indice < quantidadeParcelas; indice++) {
+            BigDecimal valorParcela = indice == quantidadeParcelas - 1
+                    ? valorBase.add(restante)
+                    : valorBase;
+            parcelas.add(new ParcelaProgramada(
+                    movimentacao.getDataPrimeiroVencimento().plusMonths(indice),
+                    valorParcela));
+        }
+        return parcelas;
+    }
+
+    private FechamentoClienteMovimentacaoResponse toFechamentoMovimentacao(MovimentacaoFinanceira movimentacao) {
+        return new FechamentoClienteMovimentacaoResponse(
+                movimentacao.getId(),
+                movimentacao.getDescricao(),
+                movimentacao.getCategoria(),
+                movimentacao.getValor(),
+                movimentacao.getData(),
+                movimentacao.getTipoPagamento(),
+                movimentacao.getQuantidadeParcelas(),
+                movimentacao.getDataPrimeiroVencimento());
+    }
+
     private List<ProdutoPorCategoriaResponse> agruparProdutosPorCategoria(List<Produto> produtos) {
         Map<String, List<Produto>> agrupados = produtos.stream()
                 .collect(Collectors.groupingBy(Produto::getCategoria));
@@ -147,5 +264,8 @@ public class RelatorioService {
                 })
                 .sorted((a, b) -> b.valorEstoqueVenda().compareTo(a.valorEstoqueVenda()))
                 .toList();
+    }
+
+    private record ParcelaProgramada(LocalDate vencimento, BigDecimal valor) {
     }
 }

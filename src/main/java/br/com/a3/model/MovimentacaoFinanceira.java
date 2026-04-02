@@ -33,8 +33,21 @@ public class MovimentacaoFinanceira {
     @Column(nullable = false, length = 160)
     private String descricao;
 
+    @Column(nullable = false, length = 120)
+    private String cliente;
+
     @Column(nullable = false, length = 80)
     private String categoria;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_pagamento", nullable = false, length = 20)
+    private TipoPagamento tipoPagamento;
+
+    @Column(name = "quantidade_parcelas", nullable = false)
+    private Integer quantidadeParcelas;
+
+    @Column(name = "data_primeiro_vencimento", nullable = false)
+    private LocalDate dataPrimeiroVencimento;
 
     public Long getId() {
         return id;
@@ -76,11 +89,43 @@ public class MovimentacaoFinanceira {
         this.descricao = descricao;
     }
 
+    public String getCliente() {
+        return cliente;
+    }
+
+    public void setCliente(String cliente) {
+        this.cliente = cliente;
+    }
+
     public String getCategoria() {
         return categoria;
     }
 
     public void setCategoria(String categoria) {
         this.categoria = categoria;
+    }
+
+    public TipoPagamento getTipoPagamento() {
+        return tipoPagamento;
+    }
+
+    public void setTipoPagamento(TipoPagamento tipoPagamento) {
+        this.tipoPagamento = tipoPagamento;
+    }
+
+    public Integer getQuantidadeParcelas() {
+        return quantidadeParcelas;
+    }
+
+    public void setQuantidadeParcelas(Integer quantidadeParcelas) {
+        this.quantidadeParcelas = quantidadeParcelas;
+    }
+
+    public LocalDate getDataPrimeiroVencimento() {
+        return dataPrimeiroVencimento;
+    }
+
+    public void setDataPrimeiroVencimento(LocalDate dataPrimeiroVencimento) {
+        this.dataPrimeiroVencimento = dataPrimeiroVencimento;
     }
 }

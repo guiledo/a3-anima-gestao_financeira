@@ -3,52 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestão Financeira — A3</title>
-  <meta name="description" content="Sistema de gestão financeira e controle de produtos">
-  <link rel="stylesheet" href="/style.css?v=20260401-3">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>💰</text></svg>">
+  <title>Gestao Financeira - A3</title>
+  <meta name="description" content="Sistema de gestao financeira, relatorios e visao de infraestrutura">
+  <link rel="stylesheet" href="/style.css?v=20260401-5">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>&#128176;</text></svg>">
 </head>
 <body>
   <div class="app-layout">
-    <!-- ═══ Sidebar ═══ -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <div class="logo-icon">💰</div>
+          <div class="logo-icon">&#128176;</div>
           <div>
-            <div class="logo-text">Gestão Financeira</div>
-            <div class="logo-sub">A3 — Painel de Controle</div>
+            <div class="logo-text">Gestao Financeira</div>
+            <div class="logo-sub">A3 - Painel de Controle</div>
           </div>
         </div>
       </div>
 
       <nav class="sidebar-nav">
         <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
-          <span class="nav-icon">📊</span> Dashboard
+          <span class="nav-icon">&#128202;</span> Dashboard
         </div>
         <div class="nav-item" data-page="produtos" onclick="navigateTo('produtos')">
-          <span class="nav-icon">📦</span> Produtos
+          <span class="nav-icon">&#128230;</span> Produtos
         </div>
         <div class="nav-item" data-page="movimentacoes" onclick="navigateTo('movimentacoes')">
-          <span class="nav-icon">💸</span> Movimentações
+          <span class="nav-icon">&#128184;</span> Movimentacoes
         </div>
         <div class="nav-item" data-page="relatorios" onclick="navigateTo('relatorios')">
-          <span class="nav-icon">📈</span> Relatórios
+          <span class="nav-icon">&#128200;</span> Relatorios
         </div>
         <div class="nav-item" data-page="historico" onclick="navigateTo('historico')">
-          <span class="nav-icon">📜</span> Histórico & Logs
+          <span class="nav-icon">&#128220;</span> Historico &amp; Logs
+        </div>
+        <div class="nav-item" data-page="infraestrutura" onclick="navigateTo('infraestrutura')">
+          <span class="nav-icon">&#128752;</span> Infraestrutura
         </div>
       </nav>
 
       <div class="sidebar-footer">
-        <div id="status-indicator" onclick="checkSystemHealth()" style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:8px; padding:6px; border-radius:4px; background:rgba(255,255,255,0.05); transition:0.3s" title="Clique para re-testar agora">
-          <span id="status-dot">🟡</span> <span id="status-text" style="font-weight:600">Conectando...</span>
+        <div id="status-indicator" onclick="checkSystemHealth()" style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:8px; padding:6px; border-radius:4px; background:rgba(255,255,255,0.05); transition:0.3s" title="Clique para testar novamente">
+          <span id="status-dot">&#128993;</span> <span id="status-text" style="font-weight:600">Conectando...</span>
         </div>
-        Spring Boot 4 &bull; H2 Database<br>A3 — Anima Educação
+        Spring Boot 4 &bull; H2 Database<br>A3 - Anima Educacao
       </div>
     </aside>
 
-    <!-- ═══ Main Content ═══ -->
     <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
 
     <main class="main-content">
@@ -61,7 +62,7 @@
           aria-controls="sidebar"
           aria-expanded="false"
           onclick="toggleSidebar()">
-          ☰
+          &#9776;
         </button>
         <div class="mobile-topbar-brand">
           <div class="mobile-topbar-title" id="mobile-page-title">Dashboard</div>
@@ -69,14 +70,13 @@
         </div>
       </header>
 
-      <!-- ── PAGE: Dashboard ── -->
       <section class="page active" id="page-dashboard">
         <div class="page-header">
           <div>
             <h1 class="page-title">Dashboard</h1>
-            <p class="page-subtitle">Visão geral do sistema financeiro</p>
+            <p class="page-subtitle">Visao geral do sistema financeiro</p>
           </div>
-          <button class="btn btn-ghost" onclick="loadDashboard()">🔄 Atualizar</button>
+          <button class="btn btn-ghost" onclick="loadDashboard()">Atualizar</button>
         </div>
 
         <div class="kpi-grid" id="kpi-grid">
@@ -84,19 +84,18 @@
         </div>
       </section>
 
-      <!-- ── PAGE: Produtos ── -->
       <section class="page" id="page-produtos">
         <div class="page-header">
           <div>
             <h1 class="page-title">Produtos</h1>
-            <p class="page-subtitle">Gerencie seu catálogo de produtos</p>
+            <p class="page-subtitle">Gerencie seu catalogo de produtos</p>
           </div>
-          <button class="btn btn-primary" onclick="openProdutoModal()">✚ Novo Produto</button>
+          <button class="btn btn-primary" onclick="openProdutoModal()">Novo Produto</button>
         </div>
 
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📦 Lista de Produtos</span>
+            <span class="card-title">&#128230; Lista de Produtos</span>
             <span id="produtos-count" class="badge badge-neutral">0 itens</span>
           </div>
           <div class="table-wrapper">
@@ -107,10 +106,10 @@
                   <th>Nome</th>
                   <th>Categoria</th>
                   <th>Custo</th>
-                  <th>Preço</th>
+                  <th>Preco</th>
                   <th>Estoque</th>
                   <th>Status</th>
-                  <th style="text-align:right">Ações</th>
+                  <th style="text-align:right">Acoes</th>
                 </tr>
               </thead>
               <tbody id="produtos-tbody">
@@ -121,19 +120,18 @@
         </div>
       </section>
 
-      <!-- ── PAGE: Movimentações ── -->
       <section class="page" id="page-movimentacoes">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Movimentações Financeiras</h1>
-            <p class="page-subtitle">Controle de entradas e saídas</p>
+            <h1 class="page-title">Movimentacoes Financeiras</h1>
+            <p class="page-subtitle">Controle de entradas e saidas com agrupamento por cliente</p>
           </div>
-          <button class="btn btn-primary" onclick="openMovimentacaoModal()">✚ Nova Movimentação</button>
+          <button class="btn btn-primary" onclick="openMovimentacaoModal()">Nova Movimentacao</button>
         </div>
 
         <div class="card">
           <div class="card-header">
-            <span class="card-title">💸 Lista de Movimentações</span>
+            <span class="card-title">&#128184; Lista de Movimentacoes</span>
             <span id="movimentacoes-count" class="badge badge-neutral">0 itens</span>
           </div>
           <div class="table-wrapper">
@@ -141,54 +139,55 @@
               <thead>
                 <tr>
                   <th>ID</th>
+                  <th>Cliente</th>
                   <th>Tipo</th>
-                  <th>Descrição</th>
+                  <th>Descricao</th>
                   <th>Categoria</th>
+                  <th>Pagamento</th>
+                  <th>Parcelas</th>
+                  <th>1o vencimento</th>
                   <th>Valor</th>
                   <th>Data</th>
-                  <th style="text-align:right">Ações</th>
+                  <th style="text-align:right">Acoes</th>
                 </tr>
               </thead>
               <tbody id="movimentacoes-tbody">
-                <tr><td colspan="7"><div class="loading-overlay"><div class="spinner"></div> Carregando...</div></td></tr>
+                <tr><td colspan="11"><div class="loading-overlay"><div class="spinner"></div> Carregando...</div></td></tr>
               </tbody>
             </table>
           </div>
         </div>
       </section>
 
-      <!-- ── PAGE: Relatórios ── -->
       <section class="page" id="page-relatorios">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Relatórios</h1>
-            <p class="page-subtitle">Análises financeiras e de produtos</p>
+            <h1 class="page-title">Relatorios</h1>
+            <p class="page-subtitle">Analises financeiras e de produtos</p>
           </div>
         </div>
 
-        <!-- Relatório Financeiro -->
         <div class="report-section">
           <div class="filter-bar">
             <div class="form-group">
-              <label class="form-label">Data Início</label>
+              <label class="form-label">Data Inicio</label>
               <input type="date" id="rel-data-inicio" class="form-input">
             </div>
             <div class="form-group">
               <label class="form-label">Data Fim</label>
               <input type="date" id="rel-data-fim" class="form-input">
             </div>
-            <button class="btn btn-primary" onclick="loadRelatorioFinanceiro()">📊 Gerar Relatório Financeiro</button>
+            <button class="btn btn-primary" onclick="loadRelatorioFinanceiro()">Gerar Relatorio Financeiro</button>
           </div>
 
           <div id="relatorio-financeiro-content"></div>
         </div>
 
-        <!-- Relatório de Produtos -->
         <div class="report-section">
           <div class="card">
             <div class="card-header">
-              <span class="card-title">📦 Relatório de Produtos</span>
-              <button class="btn btn-ghost btn-sm" onclick="loadRelatorioProdutos()">🔄 Atualizar</button>
+              <span class="card-title">&#128230; Relatorio de Produtos</span>
+              <button class="btn btn-ghost btn-sm" onclick="loadRelatorioProdutos()">Atualizar</button>
             </div>
             <div class="card-body" id="relatorio-produtos-content">
               <div class="loading-overlay"><div class="spinner"></div> Clique em atualizar para gerar</div>
@@ -197,39 +196,36 @@
         </div>
       </section>
 
-      <!-- ── PAGE: Histórico & Logs ── -->
       <section class="page" id="page-historico">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Histórico & Logs</h1>
-            <p class="page-subtitle">Rastreabilidade de ações e erros do sistema</p>
+            <h1 class="page-title">Historico &amp; Logs</h1>
+            <p class="page-subtitle">Rastreabilidade de acoes e erros do sistema</p>
           </div>
-          <button class="btn btn-ghost" onclick="loadHistorico()">🔄 Atualizar</button>
+          <button class="btn btn-ghost" onclick="loadHistorico()">Atualizar</button>
         </div>
 
         <div class="tabs-container" style="margin-bottom: 20px; display: flex; gap: 10px;">
-          <button class="btn btn-primary" id="btn-tab-timeline" onclick="switchHistoricoTab('timeline')">⏱️ Timeline de Movimentações</button>
-          <button class="btn btn-ghost" id="btn-tab-logs" onclick="switchHistoricoTab('logs')">⚠️ Console de Logs</button>
+          <button class="btn btn-primary" id="btn-tab-timeline" onclick="switchHistoricoTab('timeline')">Timeline de Movimentacoes</button>
+          <button class="btn btn-ghost" id="btn-tab-logs" onclick="switchHistoricoTab('logs')">Console de Logs</button>
         </div>
 
-        <!-- Tab: Timeline -->
         <div id="view-timeline" class="card" style="display: block;">
           <div class="card-header">
-            <span class="card-title">⏱️ Linha do Tempo</span>
-            <button class="btn btn-ghost btn-sm" onclick="clearTimeline()">🗑️ Limpar Timeline</button>
+            <span class="card-title">Linha do Tempo</span>
+            <button class="btn btn-ghost btn-sm" onclick="clearTimeline()">Limpar Timeline</button>
           </div>
           <div class="card-body">
             <div class="timeline" id="historico-timeline">
-              <div class="loading-overlay"><div class="spinner"></div> Carregando histórico...</div>
+              <div class="loading-overlay"><div class="spinner"></div> Carregando historico...</div>
             </div>
           </div>
         </div>
 
-        <!-- Tab: Logs -->
         <div id="view-logs" class="card" style="display: none;">
           <div class="card-header">
-            <span class="card-title">⚠️ Monitoramento de Erros</span>
-            <button class="btn btn-ghost btn-sm" onclick="clearLogs()">🗑️ Limpar Console</button>
+            <span class="card-title">Monitoramento de Erros</span>
+            <button class="btn btn-ghost btn-sm" onclick="clearLogs()">Limpar Console</button>
           </div>
           <div class="card-body" style="padding: 0;">
             <div class="log-console" id="log-console">
@@ -239,10 +235,22 @@
         </div>
       </section>
 
+      <section class="page" id="page-infraestrutura">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Infraestrutura</h1>
+            <p class="page-subtitle">Stack da aplicacao, conexoes, banco e endpoints publicados</p>
+          </div>
+          <button class="btn btn-ghost" onclick="loadInfraestrutura()">Atualizar</button>
+        </div>
+
+        <div id="infraestrutura-content">
+          <div class="loading-overlay"><div class="spinner"></div> Carregando infraestrutura...</div>
+        </div>
+      </section>
     </main>
   </div>
 
-  <!-- ═══ Modal ═══ -->
   <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
     <div class="modal" onclick="event.stopPropagation()">
       <div class="modal-header">
@@ -254,9 +262,8 @@
     </div>
   </div>
 
-  <!-- ═══ Toast Container ═══ -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="/app.js?v=20260401-3"></script>
+  <script src="/app.js?v=20260401-5"></script>
 </body>
 </html>

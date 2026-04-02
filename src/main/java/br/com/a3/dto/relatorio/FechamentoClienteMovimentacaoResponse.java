@@ -1,19 +1,16 @@
-package br.com.a3.dto.movimentacao;
+package br.com.a3.dto.relatorio;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import br.com.a3.model.TipoPagamento;
-import br.com.a3.model.TipoMovimentacao;
 
-public record MovimentacaoFinanceiraResponse(
+public record FechamentoClienteMovimentacaoResponse(
         Long id,
-        TipoMovimentacao tipo,
+        String descricao,
+        String categoria,
         BigDecimal valor,
         LocalDate data,
-        String descricao,
-        String cliente,
-        String categoria,
         TipoPagamento tipoPagamento,
         Integer quantidadeParcelas,
         LocalDate dataPrimeiroVencimento) {
