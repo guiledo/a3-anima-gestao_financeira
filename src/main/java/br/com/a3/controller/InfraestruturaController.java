@@ -151,6 +151,8 @@ public class InfraestruturaController {
         List<String> warnings = new ArrayList<>();
         if (datasourceUrl.contains(":mem:")) {
             warnings.add("Banco em memoria: reiniciar a aplicacao descarta os dados carregados.");
+        } else if (datasourceUrl.contains(":file:")) {
+            warnings.add("Banco local em arquivo: os dados persistem entre reinicios.");
         }
         if (h2ConsoleEnabled) {
             warnings.add("Console H2 habilitado em " + h2ConsolePath + ".");

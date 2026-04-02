@@ -6,14 +6,14 @@
   <title>Gestao Financeira - A3</title>
   <meta name="description" content="Sistema de gestao financeira, relatorios e visao de infraestrutura">
   <link rel="stylesheet" href="/style.css?v=20260401-5">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>&#128176;</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Ctext x='16' y='21' font-size='13' text-anchor='middle' fill='white' font-family='Arial'%3EA3%3C/text%3E%3C/svg%3E">
 </head>
 <body>
   <div class="app-layout">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <div class="logo-icon">&#128176;</div>
+          <div class="logo-icon">A3</div>
           <div>
             <div class="logo-text">Gestao Financeira</div>
             <div class="logo-sub">A3 - Painel de Controle</div>
@@ -23,30 +23,30 @@
 
       <nav class="sidebar-nav">
         <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
-          <span class="nav-icon">&#128202;</span> Dashboard
+          <span class="nav-icon">D</span> Dashboard
         </div>
         <div class="nav-item" data-page="produtos" onclick="navigateTo('produtos')">
-          <span class="nav-icon">&#128230;</span> Produtos
+          <span class="nav-icon">P</span> Produtos
         </div>
         <div class="nav-item" data-page="movimentacoes" onclick="navigateTo('movimentacoes')">
-          <span class="nav-icon">&#128184;</span> Movimentacoes
+          <span class="nav-icon">M</span> Movimentacoes
         </div>
         <div class="nav-item" data-page="relatorios" onclick="navigateTo('relatorios')">
-          <span class="nav-icon">&#128200;</span> Relatorios
+          <span class="nav-icon">R</span> Relatorios
         </div>
         <div class="nav-item" data-page="historico" onclick="navigateTo('historico')">
-          <span class="nav-icon">&#128220;</span> Historico &amp; Logs
+          <span class="nav-icon">H</span> Historico &amp; Logs
         </div>
         <div class="nav-item" data-page="infraestrutura" onclick="navigateTo('infraestrutura')">
-          <span class="nav-icon">&#128752;</span> Infraestrutura
+          <span class="nav-icon">I</span> Infraestrutura
         </div>
       </nav>
 
       <div class="sidebar-footer">
         <div id="status-indicator" onclick="checkSystemHealth()" style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:8px; padding:6px; border-radius:4px; background:rgba(255,255,255,0.05); transition:0.3s" title="Clique para testar novamente">
-          <span id="status-dot">&#128993;</span> <span id="status-text" style="font-weight:600">Conectando...</span>
+          <span id="status-dot" class="status-dot">...</span> <span id="status-text" style="font-weight:600">Conectando...</span>
         </div>
-        Spring Boot 4 &bull; H2 Database<br>A3 - Anima Educacao
+        Spring Boot 4 | H2 em arquivo<br>A3 - Anima Educacao
       </div>
     </aside>
 
@@ -66,7 +66,7 @@
         </button>
         <div class="mobile-topbar-brand">
           <div class="mobile-topbar-title" id="mobile-page-title">Dashboard</div>
-          <div class="mobile-topbar-sub">A3 • Painel de Controle</div>
+          <div class="mobile-topbar-sub">A3 | Painel de Controle</div>
         </div>
       </header>
 
@@ -95,7 +95,7 @@
 
         <div class="card">
           <div class="card-header">
-            <span class="card-title">&#128230; Lista de Produtos</span>
+            <span class="card-title">Lista de Produtos</span>
             <span id="produtos-count" class="badge badge-neutral">0 itens</span>
           </div>
           <div class="table-wrapper">
@@ -131,7 +131,7 @@
 
         <div class="card">
           <div class="card-header">
-            <span class="card-title">&#128184; Lista de Movimentacoes</span>
+            <span class="card-title">Lista de Movimentacoes</span>
             <span id="movimentacoes-count" class="badge badge-neutral">0 itens</span>
           </div>
           <div class="table-wrapper">
@@ -186,7 +186,7 @@
         <div class="report-section">
           <div class="card">
             <div class="card-header">
-              <span class="card-title">&#128230; Relatorio de Produtos</span>
+              <span class="card-title">Relatorio de Produtos</span>
               <button class="btn btn-ghost btn-sm" onclick="loadRelatorioProdutos()">Atualizar</button>
             </div>
             <div class="card-body" id="relatorio-produtos-content">

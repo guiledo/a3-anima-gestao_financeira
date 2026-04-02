@@ -185,9 +185,44 @@ function formatTipoPagamento(tipoPagamento) {
   return '-';
 }
 
-function formatParcelas(quantidadeParcelas) {
-  const parcelas = Number(quantidadeParcelas) || 1;
-  return `${parcelas}x`;
+function formatParcelas(quantidadeParcelas, valorTotal = 0) {
+  const parcelas = Math.max(Number(quantidadeParcelas) || 1, 1);
+  const valor = Number(valorTotal) || 0;
+
+  if (parcelas === 1) {
+    return valor > 0 ? `1 parcela de ${formatCurrency(valor)}` : '1 parcela';
+  }
+
+  if (valor > 0) {
+    return `${parcelas}x de ${formatCurrency(valor / parcelas)}`;
+  }
+
+  return `${parcelas} parcelas`;
+}
+
+function updateMovimentacaoParcelaPreview() {
+  const preview = document.getElementById('mov-parcelas-preview');
+  const tipoPagamento = document.getElementById('mov-tipo-pagamento');
+  const quantidadeParcelas = document.getElementById('mov-quantidade-parcelas');
+  const valor = document.getElementById('mov-valor');
+  if (!preview || !tipoPagamento || !quantidadeParcelas || !valor) return;
+
+  const parcelas = Math.max(parseInt(quantidadeParcelas.value, 10) || 1, 1);
+  const valorTotal = parseFloat(valor.value) || 0;
+
+  if (tipoPagamento.value === 'AVISTA' || parcelas === 1) {
+    preview.textContent = valorTotal > 0
+      ? `Parcela unica de ${formatCurrency(valorTotal)}.`
+      : 'Pagamento em parcela unica.';
+    return;
+  }
+
+  if (valorTotal > 0) {
+    preview.textContent = `${parcelas} parcelas de ${formatCurrency(valorTotal / parcelas)}.`;
+    return;
+  }
+
+  preview.textContent = `${parcelas} parcelas. Informe o valor para calcular cada parcela.`;
 }
 
 function escapeHtml(text) {
@@ -450,7 +485,7 @@ async function loadMovimentacoes() {
           <td class="td-name">${escapeHtml(movimentacao.descricao)}</td>
           <td>${escapeHtml(movimentacao.categoria)}</td>
           <td>${escapeHtml(formatTipoPagamento(movimentacao.tipoPagamento))}</td>
-          <td>${escapeHtml(formatParcelas(movimentacao.quantidadeParcelas))}</td>
+          <td>${escapeHtml(formatParcelas(movimentacao.quantidadeParcelas, movimentacao.valor))}</td>
           <td>${formatDate(movimentacao.dataPrimeiroVencimento)}</td>
           <td><strong class="${movimentacao.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'}">${formatCurrency(movimentacao.valor)}</strong></td>
           <td>${formatDate(movimentacao.data)}</td>
@@ -493,7 +528,7 @@ function openMovimentacaoModal(id) {
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Valor (R$)</label>
-        <input type="number" id="mov-valor" class="form-input" step="0.01" min="0" placeholder="0.00">
+        <input type="number" id="mov-valor" class="form-input" step="0.01" min="0" placeholder="0.00" oninput="updateMovimentacaoParcelaPreview()">
       </div>
       <div class="form-group">
         <label class="form-label">Data</label>
@@ -514,7 +549,8 @@ function openMovimentacaoModal(id) {
       </div>
       <div class="form-group">
         <label class="form-label">Parcelas</label>
-        <input type="number" id="mov-quantidade-parcelas" class="form-input" min="1" max="360" value="1">
+        <input type="number" id="mov-quantidade-parcelas" class="form-input" min="1" max="360" value="1" oninput="updateMovimentacaoParcelaPreview()">
+        <div class="form-hint" id="mov-parcelas-preview">Pagamento em parcela unica.</div>
       </div>
     </div>
     <div class="form-group">
@@ -558,6 +594,7 @@ function syncMovimentacaoPagamentoFields() {
     quantidadeParcelas.value = '1';
     quantidadeParcelas.disabled = true;
     quantidadeParcelas.min = '1';
+    updateMovimentacaoParcelaPreview();
     return;
   }
 
@@ -566,6 +603,8 @@ function syncMovimentacaoPagamentoFields() {
   if ((parseInt(quantidadeParcelas.value, 10) || 0) < 2) {
     quantidadeParcelas.value = '2';
   }
+
+  updateMovimentacaoParcelaPreview();
 }
 
 async function saveMovimentacao() {
@@ -768,7 +807,7 @@ function renderFechamentoPorCliente(fechamentoPorCliente) {
                         <td>${formatCurrency(item.valor)}</td>
                         <td>${formatDate(item.data)}</td>
                         <td>${escapeHtml(formatTipoPagamento(item.tipoPagamento))}</td>
-                        <td>${escapeHtml(formatParcelas(item.quantidadeParcelas))}</td>
+                        <td>${escapeHtml(formatParcelas(item.quantidadeParcelas, item.valor))}</td>
                         <td>${formatDate(item.dataPrimeiroVencimento)}</td>
                       </tr>
                     `).join('')}
@@ -992,7 +1031,7 @@ async function loadHistorico() {
               &bull;
               Categoria: <strong>${escapeHtml(item.categoria)}</strong>
               &bull;
-              Pagamento: <strong>${escapeHtml(formatTipoPagamento(item.tipoPagamento))} ${escapeHtml(formatParcelas(item.quantidadeParcelas))}</strong>
+              Pagamento: <strong>${escapeHtml(formatTipoPagamento(item.tipoPagamento))} ${escapeHtml(formatParcelas(item.quantidadeParcelas, item.valor))}</strong>
               &bull;
               Valor: <strong class="${isEntrada ? 'text-success' : 'text-danger'}">${formatCurrency(item.valor)}</strong>
             </div>
