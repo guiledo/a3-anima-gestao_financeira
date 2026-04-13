@@ -14,13 +14,13 @@ function updateMobilePageTitle(page) {
   const labels = {
     dashboard: 'Dashboard',
     produtos: 'Produtos',
-    movimentacoes: 'Movimentacoes',
-    relatorios: 'Relatorios',
-    historico: 'Historico e Logs',
+    movimentacoes: 'Movimentações',
+    relatorios: 'Relatórios',
+    historico: 'Histórico e Logs',
     infraestrutura: 'Infraestrutura'
   };
 
-  title.textContent = labels[page] || 'Gestao Financeira';
+  title.textContent = labels[page] || 'Gestão Financeira';
 }
 
 function setSidebarOpen(open) {
@@ -265,7 +265,7 @@ async function loadDashboard() {
         <div class="kpi-value text-success">${formatCurrency(data.totalEntradas)}</div>
       </div>
       <div class="kpi-card" data-color="red">
-        <div class="kpi-label">Total saidas</div>
+        <div class="kpi-label">Total saídas</div>
         <div class="kpi-value text-danger">${formatCurrency(data.totalSaidas)}</div>
       </div>
       <div class="kpi-card" data-color="${saldoColor}">
@@ -285,7 +285,7 @@ async function loadDashboard() {
         <div class="kpi-value">${formatCurrency(data.valorTotalEstoque)}</div>
       </div>
       <div class="kpi-card" data-color="amber">
-        <div class="kpi-label">Movimentacoes</div>
+        <div class="kpi-label">Movimentações</div>
         <div class="kpi-value">${(data.totalMovimentacoes ?? 0).toLocaleString('pt-BR')}</div>
       </div>
     `;
@@ -306,7 +306,7 @@ async function loadProdutos() {
     document.getElementById('produtos-count').textContent = `${produtos.length} itens`;
 
     if (produtos.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8">${buildEmptyState('Nenhum produto cadastrado', 'Clique em "Novo Produto" para comecar', '[]')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8">${buildEmptyState('Nenhum produto cadastrado', 'Clique em "Novo Produto" para começar', '[]')}</td></tr>`;
       return;
     }
 
@@ -344,7 +344,17 @@ function openProdutoModal(id) {
     </div>
     <div class="form-group">
       <label class="form-label">Categoria</label>
-      <input type="text" id="prod-categoria" class="form-input" placeholder="Ex: Material Escolar" maxlength="80">
+      <select id="prod-categoria" class="form-select">
+        <option value="">Selecione a categoria...</option>
+        <option value="Eletrônicos">Eletrônicos</option>
+        <option value="Informática">Informática</option>
+        <option value="Móveis">Móveis</option>
+        <option value="Material de Escritório">Material de Escritório</option>
+        <option value="Alimentação">Alimentação</option>
+        <option value="Vestuário">Vestuário</option>
+        <option value="Serviços">Serviços</option>
+        <option value="Outros">Outros</option>
+      </select>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -448,7 +458,7 @@ async function loadMovimentacoes() {
     document.getElementById('movimentacoes-count').textContent = `${movimentacoes.length} itens`;
 
     if (movimentacoes.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="11">${buildEmptyState('Nenhuma movimentacao registrada', 'Clique em "Nova Movimentacao" para comecar', '$')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11">${buildEmptyState('Nenhuma movimentação registrada', 'Clique em "Nova Movimentação" para começar', '$')}</td></tr>`;
       return;
     }
 
@@ -513,7 +523,7 @@ function openMovimentacaoModal(id) {
         <label class="form-label">Tipo</label>
         <select id="mov-tipo" class="form-select">
           <option value="ENTRADA">Entrada</option>
-          <option value="SAIDA">Saida</option>
+          <option value="SAIDA">Saída</option>
         </select>
       </div>
       <div class="form-group">
@@ -522,7 +532,7 @@ function openMovimentacaoModal(id) {
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Descricao</label>
+      <label class="form-label">Descrição</label>
       <input type="text" id="mov-descricao" class="form-input" placeholder="Ex: Venda do dia" maxlength="160">
     </div>
     <div class="form-row">
@@ -537,13 +547,24 @@ function openMovimentacaoModal(id) {
     </div>
     <div class="form-group">
       <label class="form-label">Categoria</label>
-      <input type="text" id="mov-categoria" class="form-input" placeholder="Ex: Vendas" maxlength="80">
+      <select id="mov-categoria" class="form-select">
+        <option value="">Selecione a categoria...</option>
+        <option value="Vendas">Vendas</option>
+        <option value="Compras">Compras</option>
+        <option value="Serviços Prestados">Serviços Prestados</option>
+        <option value="Serviços Contratados">Serviços Contratados</option>
+        <option value="Despesas Operacionais">Despesas Operacionais</option>
+        <option value="Salários">Salários</option>
+        <option value="Impostos e Taxas">Impostos e Taxas</option>
+        <option value="Aluguel">Aluguel</option>
+        <option value="Outros">Outros</option>
+      </select>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Tipo de pagamento</label>
         <select id="mov-tipo-pagamento" class="form-select" onchange="syncMovimentacaoPagamentoFields()">
-          <option value="AVISTA">A vista</option>
+          <option value="AVISTA">À vista</option>
           <option value="PARCELADO">Parcelado</option>
         </select>
       </div>
@@ -564,7 +585,7 @@ function openMovimentacaoModal(id) {
     <button class="btn btn-success" onclick="saveMovimentacao()">${isEdit ? 'Atualizar' : 'Criar'}</button>
   `;
 
-  openModal(isEdit ? 'Editar Movimentacao' : 'Nova Movimentacao', body, footer);
+  openModal(isEdit ? 'Editar Movimentação' : 'Nova Movimentação', body, footer);
   syncMovimentacaoPagamentoFields();
 
   if (isEdit) {
@@ -638,10 +659,10 @@ async function saveMovimentacao() {
   try {
     if (id) {
       await apiPut(`/movimentacoes/${id}`, data);
-      showToast('Movimentacao atualizada', 'success');
+      showToast('Movimentação atualizada', 'success');
     } else {
       await apiPost('/movimentacoes', data);
-      showToast('Movimentacao criada', 'success');
+      showToast('Movimentação criada', 'success');
     }
 
     closeModal();
@@ -657,7 +678,7 @@ async function deleteMovimentacao(id) {
 
   try {
     await apiDelete(`/movimentacoes/${id}`);
-    showToast('Movimentacao excluida', 'success');
+    showToast('Movimentação excluída', 'success');
     loadMovimentacoes();
     loadDashboard();
   } catch (err) {
@@ -831,7 +852,13 @@ async function loadRelatorioFinanceiro() {
   const container = document.getElementById('relatorio-financeiro-content');
 
   if (!inicio || !fim) {
-    showToast('Selecione as datas de inicio e fim', 'error');
+    showToast('Selecione as datas de início e fim', 'error');
+    return;
+  }
+
+  if (inicio > fim) {
+    showToast('A data de início não pode ser maior que a data fim', 'error');
+    document.getElementById('rel-data-inicio').focus();
     return;
   }
 
@@ -859,7 +886,7 @@ async function loadRelatorioFinanceiro() {
           <div class="kpi-value ${relatorio.saldoPeriodo >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(relatorio.saldoPeriodo)}</div>
         </div>
         <div class="kpi-card" data-color="amber">
-          <div class="kpi-label">Numero de movimentacoes</div>
+          <div class="kpi-label">Número de movimentações</div>
           <div class="kpi-value">${relatorio.quantidadeMovimentacoes}</div>
         </div>
         <div class="kpi-card" data-color="cyan">
@@ -885,7 +912,7 @@ async function loadRelatorioFinanceiro() {
       ${renderFechamentoPorCliente(relatorio.fechamentoPorCliente)}
     `;
 
-    showToast('Relatorio financeiro gerado', 'success');
+    showToast('Relatório financeiro gerado', 'success');
   } catch (err) {
     container.innerHTML = buildEmptyState('Falha ao gerar relatorio', err.message);
     showToast(`Erro: ${err.message}`, 'error');

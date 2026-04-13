@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestao Financeira - A3</title>
-  <meta name="description" content="Sistema de gestao financeira, relatorios e visao de infraestrutura">
+  <title>Gestão Financeira - A3</title>
+  <meta name="description" content="Sistema de gestão financeira, relatórios e visão de infraestrutura">
   <link rel="stylesheet" href="/style.css?v=20260401-5">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Ctext x='16' y='21' font-size='13' text-anchor='middle' fill='white' font-family='Arial'%3EA3%3C/text%3E%3C/svg%3E">
 </head>
@@ -15,7 +15,7 @@
         <div class="sidebar-logo">
           <div class="logo-icon">A3</div>
           <div>
-            <div class="logo-text">Gestao Financeira</div>
+            <div class="logo-text">Gestão Financeira</div>
             <div class="logo-sub">A3 - Painel de Controle</div>
           </div>
         </div>
@@ -29,15 +29,15 @@
           <span class="nav-icon">P</span> Produtos
         </div>
         <div class="nav-item" data-page="movimentacoes" onclick="navigateTo('movimentacoes')">
-          <span class="nav-icon">M</span> Movimentacoes
+          <span class="nav-icon">M</span> Movimentações
         </div>
         <div class="nav-item" data-page="relatorios" onclick="navigateTo('relatorios')">
-          <span class="nav-icon">R</span> Relatorios
+          <span class="nav-icon">R</span> Relatórios
         </div>
-        <div class="nav-item" data-page="historico" onclick="navigateTo('historico')">
-          <span class="nav-icon">H</span> Historico &amp; Logs
+        <div class="nav-item" data-page="historico" data-role="admin" onclick="navigateTo('historico')" style="display:none">
+          <span class="nav-icon">H</span> Histórico & Logs
         </div>
-        <div class="nav-item" data-page="infraestrutura" onclick="navigateTo('infraestrutura')">
+        <div class="nav-item" data-page="infraestrutura" data-role="admin" onclick="navigateTo('infraestrutura')" style="display:none">
           <span class="nav-icon">I</span> Infraestrutura
         </div>
       </nav>
@@ -46,7 +46,15 @@
         <div id="status-indicator" onclick="checkSystemHealth()" style="cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:8px; padding:6px; border-radius:4px; background:rgba(255,255,255,0.05); transition:0.3s" title="Clique para testar novamente">
           <span id="status-dot" class="status-dot">...</span> <span id="status-text" style="font-weight:600">Conectando...</span>
         </div>
-        Spring Boot 4 | H2 em arquivo<br>A3 - Anima Educacao
+        <div id="user-info" style="font-size:12px; color:#94a3b8; text-align:center; margin-bottom:8px; display:none">
+          <span id="user-label">👤</span>
+        </div>
+        <form method="post" action="/logout" style="margin:0">
+          <button type="submit" style="width:100%; padding:7px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#fca5a5; font-size:12px; font-weight:600; cursor:pointer; transition:0.2s; font-family:inherit" onmouseover="this.style.background='rgba(239,68,68,0.25)'" onmouseout="this.style.background='rgba(239,68,68,0.15)'">
+            Sair da conta
+          </button>
+        </form>
+        <div style="margin-top:8px; text-align:center; font-size:11px; color:#475569">Spring Boot 4 | H2 em arquivo<br>A3 - Anima Educacao</div>
       </div>
     </aside>
 
@@ -74,7 +82,7 @@
         <div class="page-header">
           <div>
             <h1 class="page-title">Dashboard</h1>
-            <p class="page-subtitle">Visao geral do sistema financeiro</p>
+            <p class="page-subtitle">Visão geral do sistema financeiro</p>
           </div>
           <button class="btn btn-ghost" onclick="loadDashboard()">Atualizar</button>
         </div>
@@ -88,7 +96,7 @@
         <div class="page-header">
           <div>
             <h1 class="page-title">Produtos</h1>
-            <p class="page-subtitle">Gerencie seu catalogo de produtos</p>
+            <p class="page-subtitle">Gerencie seu catálogo de produtos</p>
           </div>
           <button class="btn btn-primary" onclick="openProdutoModal()">Novo Produto</button>
         </div>
@@ -123,15 +131,15 @@
       <section class="page" id="page-movimentacoes">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Movimentacoes Financeiras</h1>
-            <p class="page-subtitle">Controle de entradas e saidas com agrupamento por cliente</p>
+            <h1 class="page-title">Movimentações Financeiras</h1>
+            <p class="page-subtitle">Controle de entradas e saídas com agrupamento por cliente</p>
           </div>
-          <button class="btn btn-primary" onclick="openMovimentacaoModal()">Nova Movimentacao</button>
+          <button class="btn btn-primary" onclick="openMovimentacaoModal()">Nova Movimentação</button>
         </div>
 
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Lista de Movimentacoes</span>
+            <span class="card-title">Lista de Movimentações</span>
             <span id="movimentacoes-count" class="badge badge-neutral">0 itens</span>
           </div>
           <div class="table-wrapper">
@@ -141,14 +149,14 @@
                   <th>ID</th>
                   <th>Cliente</th>
                   <th>Tipo</th>
-                  <th>Descricao</th>
+                  <th>Descrição</th>
                   <th>Categoria</th>
                   <th>Pagamento</th>
                   <th>Parcelas</th>
-                  <th>1o vencimento</th>
+                  <th>1º vencimento</th>
                   <th>Valor</th>
                   <th>Data</th>
-                  <th style="text-align:right">Acoes</th>
+                  <th style="text-align:right">Ações</th>
                 </tr>
               </thead>
               <tbody id="movimentacoes-tbody">
@@ -162,22 +170,22 @@
       <section class="page" id="page-relatorios">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Relatorios</h1>
-            <p class="page-subtitle">Analises financeiras e de produtos</p>
+            <h1 class="page-title">Relatórios</h1>
+            <p class="page-subtitle">Análises financeiras e de produtos</p>
           </div>
         </div>
 
         <div class="report-section">
           <div class="filter-bar">
             <div class="form-group">
-              <label class="form-label">Data Inicio</label>
+              <label class="form-label">Data Início</label>
               <input type="date" id="rel-data-inicio" class="form-input">
             </div>
             <div class="form-group">
               <label class="form-label">Data Fim</label>
               <input type="date" id="rel-data-fim" class="form-input">
             </div>
-            <button class="btn btn-primary" onclick="loadRelatorioFinanceiro()">Gerar Relatorio Financeiro</button>
+            <button class="btn btn-primary" onclick="loadRelatorioFinanceiro()">Gerar Relatório Financeiro</button>
           </div>
 
           <div id="relatorio-financeiro-content"></div>
@@ -186,7 +194,7 @@
         <div class="report-section">
           <div class="card">
             <div class="card-header">
-              <span class="card-title">Relatorio de Produtos</span>
+              <span class="card-title">Relatório de Produtos</span>
               <button class="btn btn-ghost btn-sm" onclick="loadRelatorioProdutos()">Atualizar</button>
             </div>
             <div class="card-body" id="relatorio-produtos-content">
@@ -199,14 +207,14 @@
       <section class="page" id="page-historico">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Historico &amp; Logs</h1>
-            <p class="page-subtitle">Rastreabilidade de acoes e erros do sistema</p>
+            <h1 class="page-title">Histórico & Logs</h1>
+            <p class="page-subtitle">Rastreabilidade de ações e erros do sistema</p>
           </div>
           <button class="btn btn-ghost" onclick="loadHistorico()">Atualizar</button>
         </div>
 
         <div class="tabs-container" style="margin-bottom: 20px; display: flex; gap: 10px;">
-          <button class="btn btn-primary" id="btn-tab-timeline" onclick="switchHistoricoTab('timeline')">Timeline de Movimentacoes</button>
+          <button class="btn btn-primary" id="btn-tab-timeline" onclick="switchHistoricoTab('timeline')">Timeline de Movimentações</button>
           <button class="btn btn-ghost" id="btn-tab-logs" onclick="switchHistoricoTab('logs')">Console de Logs</button>
         </div>
 
@@ -217,7 +225,7 @@
           </div>
           <div class="card-body">
             <div class="timeline" id="historico-timeline">
-              <div class="loading-overlay"><div class="spinner"></div> Carregando historico...</div>
+              <div class="loading-overlay"><div class="spinner"></div> Carregando histórico...</div>
             </div>
           </div>
         </div>
@@ -239,7 +247,7 @@
         <div class="page-header">
           <div>
             <h1 class="page-title">Infraestrutura</h1>
-            <p class="page-subtitle">Stack da aplicacao, conexoes, banco e endpoints publicados</p>
+            <p class="page-subtitle">Stack da aplicação, conexões, banco e endpoints publicados</p>
           </div>
           <button class="btn btn-ghost" onclick="loadInfraestrutura()">Atualizar</button>
         </div>
@@ -265,5 +273,33 @@
   <div class="toast-container" id="toast-container"></div>
 
   <script src="/app.js?v=20260412-1"></script>
+  <script>
+    // Controle de acesso: exibe abas admin somente para ROLE_ADMIN
+    (function checkUserRole() {
+      fetch('/api/me', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data) return;
+          const isAdmin = data.roles && data.roles.includes('ROLE_ADMIN');
+          if (isAdmin) {
+            document.querySelectorAll('[data-role="admin"]').forEach(el => el.style.display = '');
+            const info = document.getElementById('user-info');
+            const label = document.getElementById('user-label');
+            if (info && label) {
+              label.textContent = '👤 ' + data.username + ' (Admin)';
+              info.style.display = 'block';
+            }
+          } else {
+            const info = document.getElementById('user-info');
+            const label = document.getElementById('user-label');
+            if (info && label) {
+              label.textContent = '👤 ' + (data.username || 'Usuário');
+              info.style.display = 'block';
+            }
+          }
+        })
+        .catch(() => {});
+    })();
+  </script>
 </body>
 </html>
