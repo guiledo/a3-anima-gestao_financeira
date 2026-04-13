@@ -822,6 +822,9 @@ function renderFechamentoPorCliente(fechamentoPorCliente) {
   `;
 }
 
+let lastRelatorioFinanceiroData = null;
+let lastRelatorioProdutosData = null;
+
 async function loadRelatorioFinanceiro() {
   const inicio = document.getElementById('rel-data-inicio').value;
   const fim = document.getElementById('rel-data-fim').value;
@@ -836,8 +839,12 @@ async function loadRelatorioFinanceiro() {
 
   try {
     const relatorio = await apiGet(`/relatorios/financeiro?dataInicio=${inicio}&dataFim=${fim}`);
+    lastRelatorioFinanceiroData = { relatorio, inicio, fim };
 
     container.innerHTML = `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;">
+        <button class="btn btn-success" onclick="exportRelatorioFinanceiroCSV()">Exportar CSV</button>
+      </div>
       <div class="kpi-grid">
         <div class="kpi-card" data-color="emerald">
           <div class="kpi-label">Entradas no periodo</div>
@@ -885,14 +892,103 @@ async function loadRelatorioFinanceiro() {
   }
 }
 
+function exportRelatorioFinanceiroCSV() {
+  if (!lastRelatorioFinanceiroData) {
+    showToast('Gere o relatorio antes de exportar', 'error');
+    return;
+  }
+
+  const { relatorio, inicio, fim } = lastRelatorioFinanceiroData;
+  let csv = '';
+
+  csv += 'RELATORIO FINANCEIRO\n';
+  csv += `Periodo;${inicio};${fim}\n`;
+  csv += '\n';
+  csv += 'RESUMO\n';
+  csv += `Total Entradas;${relatorio.totalEntradas}\n`;
+  csv += `Total Saidas;${relatorio.totalSaidas}\n`;
+  csv += `Saldo Periodo;${relatorio.saldoPeriodo}\n`;
+  csv += `Numero de Movimentacoes;${relatorio.quantidadeMovimentacoes}\n`;
+  csv += `Media Diaria Entradas;${relatorio.mediaDiariaEntradas}\n`;
+  csv += `Media Diaria Saidas;${relatorio.mediaDiariaSaidas}\n`;
+  csv += `Clientes com Debitos;${relatorio.totalClientesComDebitos || 0}\n`;
+  csv += `Total Devido por Cliente;${relatorio.totalDevidoPorClientesNoPeriodo}\n`;
+  csv += '\n';
+
+  if (relatorio.entradasPorCategoria && relatorio.entradasPorCategoria.length > 0) {
+    csv += 'ENTRADAS POR CATEGORIA\n';
+    csv += 'Categoria;Quantidade;Valor Total\n';
+    relatorio.entradasPorCategoria.forEach(item => {
+      csv += `${item.categoria};${item.quantidade};${item.valorTotal}\n`;
+    });
+    csv += '\n';
+  }
+
+  if (relatorio.saidasPorCategoria && relatorio.saidasPorCategoria.length > 0) {
+    csv += 'SAIDAS POR CATEGORIA\n';
+    csv += 'Categoria;Quantidade;Valor Total\n';
+    relatorio.saidasPorCategoria.forEach(item => {
+      csv += `${item.categoria};${item.quantidade};${item.valorTotal}\n`;
+    });
+    csv += '\n';
+  }
+
+  if (relatorio.fechamentoPorCliente && relatorio.fechamentoPorCliente.length > 0) {
+    csv += 'FECHAMENTO POR CLIENTE\n';
+    csv += 'Cliente;Total Movimentado;Devido no Periodo;Qtd Lancamentos;Proximo Vencimento\n';
+    relatorio.fechamentoPorCliente.forEach(cliente => {
+      csv += `${cliente.cliente};${cliente.valorTotalMovimentado};${cliente.valorDevidoNoPeriodo};${cliente.quantidadeMovimentacoes};${cliente.proximoVencimento}\n`;
+    });
+    csv += '\n';
+
+    csv += 'MOVIMENTACOES POR CLIENTE\n';
+    csv += 'Cliente;Descricao;Categoria;Valor;Data;Tipo Pagamento;Quantidade Parcelas;Data Primeiro Vencimento\n';
+    relatorio.fechamentoPorCliente.forEach(cliente => {
+      cliente.movimentacoes.forEach(mov => {
+        csv += `${cliente.cliente};${mov.descricao};${mov.categoria};${mov.valor};${mov.data};${mov.tipoPagamento};${mov.quantidadeParcelas};${mov.dataPrimeiroVencimento}\n`;
+      });
+    });
+    csv += '\n';
+  }
+
+  csv += 'DEBITOS MENSAIS POR CLIENTE\n';
+  csv += 'Cliente;Competencia;Valor Devido\n';
+  relatorio.fechamentoPorCliente.forEach(cliente => {
+    cliente.debitosMensais.forEach(debito => {
+      csv += `${cliente.cliente};${debito.competencia};${debito.valorDevido}\n`;
+    });
+  });
+
+  downloadCSV(csv, `relatorio_financeiro_${inicio}_${fim}.csv`);
+  showToast('CSV exportado com sucesso', 'success');
+}
+
+function downloadCSV(csv, filename) {
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 async function loadRelatorioProdutos() {
   const container = document.getElementById('relatorio-produtos-content');
   container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Gerando relatorio...</div>';
 
   try {
     const relatorio = await apiGet('/relatorios/produtos');
+    lastRelatorioProdutosData = relatorio;
 
     container.innerHTML = `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;">
+        <button class="btn btn-success" onclick="exportRelatorioProdutosCSV()">Exportar CSV</button>
+      </div>
       <div class="kpi-grid" style="margin-bottom:20px">
         <div class="kpi-card" data-color="indigo">
           <div class="kpi-label">Total produtos</div>
@@ -959,6 +1055,40 @@ async function loadRelatorioProdutos() {
     showToast(`Erro: ${err.message}`, 'error');
   }
 }
+
+function exportRelatorioProdutosCSV() {
+  if (!lastRelatorioProdutosData) {
+    showToast('Gere o relatorio antes de exportar', 'error');
+    return;
+  }
+
+  const r = lastRelatorioProdutosData;
+  let csv = '';
+
+  csv += 'RELATORIO DE PRODUTOS\n';
+  csv += '\n';
+  csv += 'RESUMO\n';
+  csv += `Total Produtos;${r.totalProdutos}\n`;
+  csv += `Total Produtos Ativos;${r.totalProdutosAtivos}\n`;
+  csv += `Total Produtos Inativos;${r.totalProdutosInativos}\n`;
+  csv += `Total Itens em Estoque;${r.totalItensEmEstoque}\n`;
+  csv += `Valor Total Estoque Custo;${r.valorTotalEstoqueCusto}\n`;
+  csv += `Valor Total Estoque Venda;${r.valorTotalEstoqueVenda}\n`;
+  csv += `Margem Bruta Estoque;${r.margemBrutaEstoque}\n`;
+  csv += '\n';
+
+  if (r.porCategoria && r.porCategoria.length > 0) {
+    csv += 'POR CATEGORIA\n';
+    csv += 'Categoria;Quantidade Produtos;Itens Estoque;Valor Estoque Custo;Valor Estoque Venda\n';
+    r.porCategoria.forEach(item => {
+      csv += `${item.categoria};${item.quantidadeProdutos};${item.quantidadeItensEstoque};${item.valorEstoqueCusto};${item.valorEstoqueVenda}\n`;
+    });
+  }
+
+  downloadCSV(csv, 'relatorio_produtos.csv');
+  showToast('CSV exportado com sucesso', 'success');
+}
+
 function switchHistoricoTab(tabId) {
   document.getElementById('view-timeline').style.display = tabId === 'timeline' ? 'block' : 'none';
   document.getElementById('view-logs').style.display = tabId === 'logs' ? 'block' : 'none';
