@@ -1,8 +1,7 @@
 **SISTEMA DE CONTROLE DE VENDAS BASEADO EM ARQUITETURA DISTRIBUÍDA**  
 
 
-**  
-Resumo**
+**Resumo**
 
 Este artigo apresenta o desenvolvimento de um sistema de controle de vendas baseado em arquitetura distribuída, com o objetivo de superar limitações de sistemas centralizados. A metodologia envolveu a utilização de tecnologias como Spring Boot e APIs REST, além da realização de testes funcionais e de usabilidade. Os resultados demonstram melhoria na organização do sistema, facilidade de manutenção e eficiência na comunicação entre componentes.
 
