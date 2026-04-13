@@ -7,20 +7,17 @@ Este artigo apresenta o desenvolvimento de um sistema de controle de vendas base
 
 Palavras-chave: Sistemas distribuídos, API REST, HTTP, Spring Boot.
 
-**  
-Abstract**
+**Abstract**
 
 This article presents the development of a sales management system based on distributed architecture. The methodology involved modern technologies such as Spring Boot and REST APIs. Results show improved maintainability and performance.
 
 Keywords: Distributed systems, REST API, Spring Boot.
 
-**  
-1. Introdução**
+**1. Introdução**
 
 Com o avanço das aplicações modernas, sistemas centralizados tornam-se limitados diante da necessidade de escalabilidade e disponibilidade. Nesse contexto, sistemas distribuídos surgem como solução eficiente. Este trabalho tem como objetivo desenvolver um sistema de controle de vendas utilizando arquitetura distribuída.
 
-**  
-2. Desenvolvimento**
+**2. Desenvolvimento**
 
 O sistema foi desenvolvido utilizando as seguintes especificações técnicas:  
   
@@ -37,8 +34,7 @@ Banco de Dados: H2 Database 2.4.240.
 Frontend: HTML, CSS e JavaScript.  
 
 
-**  
-2.1. Aplicação de Conceitos de Sistemas Distribuídos**
+**2.1. Aplicação de Conceitos de Sistemas Distribuídos**
 
 Transparência: Observada na interação do usuário, que não percebe a distribuição dos componentes.  
   
@@ -51,18 +47,15 @@ Operações: APIs REST permitem cadastro e consulta de dados utilizando métodos
 Ambiente: O banco de dados local simula um ambiente distribuído, sendo a arquitetura compatível com computação em nuvem.  
 
 
-**  
-3. Relatório de Testes de Usabilidade**
+**3. Relatório de Testes de Usabilidade**
 
 Data do teste: 05 de Abril de 2026
 
-**  
-3.1. Introdução**
+**3.1. Introdução**
 
 Este documento apresenta os resultados dos Testes de Usabilidade realizados no sistema. O objetivo desta análise é testar a interface e mapear oportunidades de melhoria que impactam a experiência do usuário (UX), a integridade dos dados e a percepção de qualidade do software.
 
-**  
-3.2. Metodologia**
+**3.2. Metodologia**
 
 A análise foi baseada na navegação pelo sistema verificando os seguintes pontos:  
   
@@ -105,18 +98,15 @@ Filtros de Data na Aba Relatórios: Atualmente é possível inserir uma data de 
 Sincronização de Dados (Movimentações e Relatórios): A persistência de novos registros de movimentação está sendo refletida corretamente nas views de relatórios. Não foram detectadas exceções (erros ou timeouts) durante a atualização do estado da aplicação, garantindo a integridade transacional e a consistência em tempo real dos dados consultados
 
 
-**  
-4. Resultados e Discussão**
+**4. Resultados e Discussão**
 
 Os resultados demonstraram melhoria na organização do código, maior modularidade e facilidade de manutenção. Observou-se eficiência na comunicação entre componentes e redução da complexidade. A utilização da arquitetura distribuída e a separação entre frontend e backend mostraram-se adequadas para escalabilidade.
 
-**  
-5. Conclusão**
+**5. Conclusão**
 
 Conclui-se que a aplicação dos conceitos de sistemas distribuídos foi essencial para o sucesso do projeto, resultando em um sistema eficiente e modular. Como trabalhos futuros, sugere-se a implementação em nuvem e a aplicação das melhorias de interface identificadas nos testes.
 
-**  
-6. Referências**
+**6. Referências**
 
 TANENBAUM, A. S.; STEEN, M. Distributed Systems.  
 SPRING. Spring Boot Documentation.
