@@ -2,6 +2,40 @@ const API = '/api/v1';
 const MOBILE_BREAKPOINT = 768;
 
 window.appLogs = [];
+window.currentDashboardData = null;
+window.movTypeFilter = null;
+
+function handleLogin() {
+  const user = document.getElementById('login-user').value;
+  const pass = document.getElementById('login-pass').value;
+  
+  const authorizedUsers = {
+    'a3_admin_2026': 'gentaofinanceira2026',
+    'admin_gestao': 'a3_gestao_2026'
+  };
+  
+  if (authorizedUsers[user] && authorizedUsers[user] === pass) {
+    sessionStorage.setItem('authA3', 'true');
+    document.getElementById('login-error').style.display = 'none';
+    
+    // Animate exit
+    const loginScreen = document.getElementById('login-screen');
+    loginScreen.style.opacity = '0';
+    loginScreen.style.transition = '0.5s ease';
+    
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+    
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+function handleLogout() {
+  sessionStorage.removeItem('authA3');
+  window.location.reload();
+}
 
 function isMobileView() {
   return window.innerWidth <= MOBILE_BREAKPOINT;
@@ -63,11 +97,24 @@ function navigateTo(page) {
   updateMobilePageTitle(page);
   if (isMobileView()) closeSidebar();
 
+  // Reset filter if navigating normally (unless we just came from card drilldown)
+  if (page !== 'movimentacoes') {
+    window.movTypeFilter = null;
+  }
+
   if (page === 'dashboard') loadDashboard();
   if (page === 'produtos') loadProdutos();
   if (page === 'movimentacoes') loadMovimentacoes();
   if (page === 'historico') loadHistorico();
   if (page === 'infraestrutura') loadInfraestrutura();
+}
+
+/**
+ * Navega para movimentações aplicando um filtro de tipo.
+ */
+function navigateToMovimentacoesWithFilter(type) {
+  window.movTypeFilter = type;
+  navigateTo('movimentacoes');
 }
 
 function addAppLog(type, message) {
@@ -181,7 +228,7 @@ function formatDate(dateStr) {
 
 function formatTipoPagamento(tipoPagamento) {
   if (tipoPagamento === 'PARCELADO') return 'Parcelado';
-  if (tipoPagamento === 'AVISTA') return 'A vista';
+  if (tipoPagamento === 'AVISTA') return 'À vista';
   return '-';
 }
 
@@ -190,7 +237,7 @@ function formatParcelas(quantidadeParcelas, valorTotal = 0) {
   const valor = Number(valorTotal) || 0;
 
   if (parcelas === 1) {
-    return valor > 0 ? `1 parcela de ${formatCurrency(valor)}` : '1 parcela';
+    return valor > 0 ? `1 parcela de ${formatCurrency(valor)}` : '1 parcela única';
   }
 
   if (valor > 0) {
@@ -212,8 +259,8 @@ function updateMovimentacaoParcelaPreview() {
 
   if (tipoPagamento.value === 'AVISTA' || parcelas === 1) {
     preview.textContent = valorTotal > 0
-      ? `Parcela unica de ${formatCurrency(valorTotal)}.`
-      : 'Pagamento em parcela unica.';
+      ? `Parcela única de ${formatCurrency(valorTotal)}.`
+      : 'Pagamento em parcela única.';
     return;
   }
 
@@ -259,39 +306,336 @@ async function loadDashboard() {
     const saldoColor = saldo >= 0 ? 'emerald' : 'red';
     const saldoClass = saldo >= 0 ? 'text-success' : 'text-danger';
 
+    window.currentDashboardData = { ...data, saldoAtual: saldo };
+
     grid.innerHTML = `
-      <div class="kpi-card" data-color="emerald">
-        <div class="kpi-label">Total entradas</div>
+      <div class="kpi-card" data-color="emerald" data-action="filter-mov" data-type="ENTRADA" title="Ver todas as entradas">
+        <div class="kpi-label">📈 Total Entradas</div>
         <div class="kpi-value text-success">${formatCurrency(data.totalEntradas)}</div>
+        <div class="kpi-hint">↗ Ver movimentações</div>
       </div>
-      <div class="kpi-card" data-color="red">
-        <div class="kpi-label">Total saídas</div>
+      <div class="kpi-card" data-color="red" data-action="filter-mov" data-type="SAIDA" title="Ver todas as saídas">
+        <div class="kpi-label">📉 Total Saídas</div>
         <div class="kpi-value text-danger">${formatCurrency(data.totalSaidas)}</div>
+        <div class="kpi-hint">↗ Ver movimentações</div>
       </div>
-      <div class="kpi-card" data-color="${saldoColor}">
-        <div class="kpi-label">Saldo atual</div>
+      <div class="kpi-card" data-color="${saldoColor}" data-action="show-saldo" title="Ver balanço geral">
+        <div class="kpi-label">💰 Saldo Atual</div>
         <div class="kpi-value ${saldoClass}">${formatCurrency(saldo)}</div>
+        <div class="kpi-hint">↗ Ver balanço</div>
       </div>
-      <div class="kpi-card" data-color="indigo">
-        <div class="kpi-label">Produtos ativos</div>
+      <div class="kpi-card" data-color="indigo" data-action="show-produtos" title="Ver catálogo de produtos">
+        <div class="kpi-label">📦 Produtos Ativos</div>
         <div class="kpi-value">${data.totalProdutosAtivos ?? 0}</div>
+        <div class="kpi-hint">↗ Ver produtos</div>
       </div>
-      <div class="kpi-card" data-color="cyan">
-        <div class="kpi-label">Itens em estoque</div>
+      <div class="kpi-card" data-color="cyan" data-action="show-produtos" title="Ver inventário de estoque">
+        <div class="kpi-label">🏪 Itens em Estoque</div>
         <div class="kpi-value">${(data.totalItensEmEstoque ?? 0).toLocaleString('pt-BR')}</div>
+        <div class="kpi-hint">↗ Ver estoque</div>
       </div>
-      <div class="kpi-card" data-color="violet">
-        <div class="kpi-label">Valor do estoque</div>
+      <div class="kpi-card" data-color="violet" data-action="show-produtos" title="Ver valor total do estoque">
+        <div class="kpi-label">💎 Valor do Estoque</div>
         <div class="kpi-value">${formatCurrency(data.valorTotalEstoque)}</div>
+        <div class="kpi-hint">↗ Ver produtos</div>
       </div>
-      <div class="kpi-card" data-color="amber">
-        <div class="kpi-label">Movimentações</div>
+      <div class="kpi-card" data-color="amber" data-nav="movimentacoes" title="Ver todas as movimentações">
+        <div class="kpi-label">🔄 Movimentações</div>
         <div class="kpi-value">${(data.totalMovimentacoes ?? 0).toLocaleString('pt-BR')}</div>
+        <div class="kpi-hint">↗ Ver todas</div>
       </div>
     `;
+
+    // Attach robust listeners to each card
+    grid.querySelectorAll('.kpi-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const { action, type, nav } = card.dataset;
+        if (action === 'filter-mov') {
+          navigateToMovimentacoesWithFilter(type);
+        } else if (action === 'show-saldo') {
+          showSaldoDrilldown();
+        } else if (action === 'show-produtos') {
+          showProdutosDrilldown();
+        } else if (nav) {
+          navigateTo(nav);
+        }
+      });
+    });
+    
+    // Asynchronously render charts using the dashboard payload and by fetching movimentacoes
+    renderDashboardCharts(data);
+    
   } catch (err) {
     grid.innerHTML = buildEmptyState('Erro ao carregar dashboard', err.message);
     showToast(`Erro ao carregar dashboard: ${err.message}`, 'error');
+  }
+}
+
+// ─── Charting Logic ───
+let chartInstances = {};
+
+/**
+ * Exibe um modal com o detalhamento das movimentações ao clicar em um gráfico.
+ * @param {string} type - 'ENTRADA', 'SAIDA' ou uma data 'YYYY-MM-DD'
+ * @param {string} title - Título para o modal
+ */
+async function showChartDrilldown(type, title) {
+  openModal(title, `<div class="loading-overlay"><div class="spinner"></div> Filtrando dados...</div>`, '');
+  
+  try {
+    const allMovs = await apiGet('/movimentacoes');
+    let filtered = [];
+    
+    if (type === 'ENTRADA' || type === 'SAIDA') {
+      filtered = allMovs.filter(m => m.tipo === type);
+    } else {
+      filtered = allMovs.filter(m => m.data === type);
+    }
+
+    if (filtered.length === 0) {
+      document.getElementById('modal-body').innerHTML = buildEmptyState('Nenhuma movimentação encontrada', 'Nenhum registro para este critério.');
+      return;
+    }
+
+    filtered.sort((a,b) => new Date(b.data) - new Date(a.data));
+
+    const html = `
+      <div class="table-wrapper">
+        <table style="min-width: 100%;">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Descrição</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(m => `
+              <tr>
+                <td style="font-size: 11px;">${formatDate(m.data)}</td>
+                <td>
+                  <div style="font-weight:600; font-size: 13px;">${escapeHtml(m.descricao)}</div>
+                  <div style="font-size: 11px; color: var(--text-muted)">${escapeHtml(m.categoria)}</div>
+                </td>
+                <td class="${m.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'}" style="font-weight:700; text-align:right">
+                  ${m.tipo === 'ENTRADA' ? '+' : '-'}${formatCurrency(m.valor)}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    
+    document.getElementById('modal-body').innerHTML = html;
+    document.getElementById('modal-footer').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">Fechar</button>`;
+    
+  } catch (err) {
+    document.getElementById('modal-body').innerHTML = buildEmptyState('Erro ao carregar detalhes', err.message);
+  }
+}
+
+/**
+ * Exibe um detalhamento resumido dos produtos no modal.
+ */
+async function showProdutosDrilldown() {
+  openModal('Resumo do Catálogo', `<div class="loading-overlay"><div class="spinner"></div> Carregando lista...</div>`, '');
+  
+  try {
+    const produtos = await apiGet('/produtos');
+    const ativos = produtos.filter(p => p.ativo);
+
+    if (produtos.length === 0) {
+      document.getElementById('modal-body').innerHTML = buildEmptyState('Nenhum produto cadastrado', 'O catálogo está vazio.');
+      return;
+    }
+
+    const html = `
+      <div style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary);">
+        Exibindo <b>${ativos.length}</b> produtos ativos de <b>${produtos.length}</b> totais.
+      </div>
+      <div class="table-wrapper">
+        <table style="min-width: 100%;">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Preço</th>
+              <th>Estoque</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${produtos.slice(0, 50).map(p => `
+              <tr>
+                <td>
+                  <div style="font-weight:600; font-size: 13px;">${escapeHtml(p.nome)}</div>
+                  <div style="font-size: 11px; color: var(--text-muted)">${escapeHtml(p.categoria)} ${p.ativo ? '' : '<span class="text-danger">(Inativo)</span>'}</div>
+                </td>
+                <td style="font-weight:600">${formatCurrency(p.preco)}</td>
+                <td>
+                  <span class="badge ${p.estoque < 5 ? 'badge-danger' : 'badge-neutral'}">${p.estoque}</span>
+                </td>
+              </tr>
+            `).join('')}
+            ${produtos.length > 50 ? '<tr><td colspan="3" style="text-align:center; padding: 10px; font-size:11px; color:var(--text-muted)">E mais ${produtos.length - 50} itens...</td></tr>' : ''}
+          </tbody>
+        </table>
+      </div>
+    `;
+    
+    document.getElementById('modal-body').innerHTML = html;
+    document.getElementById('modal-footer').innerHTML = `
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-primary" onclick="navigateTo('produtos'); closeModal();">Gerenciar Produtos</button>
+    `;
+  } catch (err) {
+    document.getElementById('modal-body').innerHTML = buildEmptyState('Erro ao carregar produtos', err.message);
+  }
+}
+
+/**
+ * Exibe o detalhamento do saldo atual.
+ */
+async function showSaldoDrilldown() {
+  const dashData = window.currentDashboardData;
+  if (!dashData) return;
+
+  const html = `
+    <div style="display: grid; gap: 16px;">
+      <div class="card" style="padding: 16px; background: rgba(52, 211, 153, 0.05); border-color: var(--accent-success);">
+        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Total Entradas</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--accent-success);">${formatCurrency(dashData.totalEntradas)}</div>
+      </div>
+      <div class="card" style="padding: 16px; background: rgba(248, 113, 113, 0.05); border-color: var(--accent-danger);">
+        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Total Saídas</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--accent-danger);">${formatCurrency(dashData.totalSaidas)}</div>
+      </div>
+      <div style="padding: 16px; text-align: center; border-top: 1px solid var(--border); margin-top: 8px;">
+        <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">Saldo Final Disponível</div>
+        <div style="font-size: 28px; font-weight: 800; color: ${dashData.saldoAtual >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)'}">${formatCurrency(dashData.saldoAtual)}</div>
+      </div>
+    </div>
+  `;
+  
+  openModal('Balanço Geral', html, `
+    <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+    <button class="btn btn-primary" onclick="navigateTo('movimentacoes'); closeModal();">Ver Movimentações</button>
+  `);
+}
+
+async function renderDashboardCharts(dashData) {
+  if (typeof Chart === 'undefined') return;
+  Chart.defaults.color = '#94A3B8';
+  Chart.defaults.font.family = "'Outfit', sans-serif";
+  
+  // 1. Balance Doughnut Chart
+  const ctxBalance = document.getElementById('balanceChart');
+  if (ctxBalance) {
+    if (chartInstances['balance']) chartInstances['balance'].destroy();
+    chartInstances['balance'] = new Chart(ctxBalance, {
+      type: 'doughnut',
+      data: {
+        labels: ['Lucro/Entradas', 'Despesas/Saídas'],
+        datasets: [{
+          data: [dashData.totalEntradas || 0, dashData.totalSaidas || 0],
+          backgroundColor: [
+            'rgba(52, 211, 153, 0.8)', // accent-success
+            'rgba(248, 113, 113, 0.8)' // accent-danger
+          ],
+          borderColor: '#141722',
+          borderWidth: 6,
+          hoverOffset: 15
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '75%',
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 20 } }
+        },
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const type = index === 0 ? 'ENTRADA' : 'SAIDA';
+            navigateToMovimentacoesWithFilter(type);
+          }
+        }
+      }
+    });
+  }
+
+  // 2. Financial Pipeline Line Chart
+  const ctxFinancial = document.getElementById('financialChart');
+  if (ctxFinancial) {
+    try {
+      const movimentacoes = await apiGet('/movimentacoes');
+      // Aggregate by Date
+      const timelineMap = {};
+      movimentacoes.forEach(mov => {
+        if (!timelineMap[mov.data]) timelineMap[mov.data] = { entrada: 0, saida: 0 };
+        if (mov.tipo === 'ENTRADA') timelineMap[mov.data].entrada += mov.valor;
+        else timelineMap[mov.data].saida += mov.valor;
+      });
+
+      // Sort dates
+      const dates = Object.keys(timelineMap).sort();
+      const entradasData = dates.map(d => timelineMap[d].entrada);
+      const saidasData = dates.map(d => timelineMap[d].saida);
+
+      if (chartInstances['financial']) chartInstances['financial'].destroy();
+      chartInstances['financial'] = new Chart(ctxFinancial, {
+        type: 'line',
+        data: {
+          labels: dates.map(formatDate),
+          datasets: [
+            {
+              label: 'Entradas Diárias',
+              data: entradasData,
+              borderColor: '#38BDF8', // accent-primary
+              backgroundColor: 'rgba(56, 189, 248, 0.1)',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.4
+            },
+            {
+              label: 'Saídas Diárias',
+              data: saidasData,
+              borderColor: '#F87171',
+              backgroundColor: 'rgba(248, 113, 113, 0.05)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' } }
+          },
+          plugins: { 
+            legend: { position: 'top' },
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`
+              }
+            }
+          },
+          onClick: (event, elements) => {
+            if (elements.length > 0) {
+              const index = elements[0].index;
+              const rawDate = dates[index];
+              showChartDrilldown(rawDate, `Movimentações em ${formatDate(rawDate)}`);
+            }
+          }
+        }
+      });
+    } catch (e) {
+      console.error('Failed to load chart timeline data', e);
+    }
   }
 }
 
@@ -344,17 +688,7 @@ function openProdutoModal(id) {
     </div>
     <div class="form-group">
       <label class="form-label">Categoria</label>
-      <select id="prod-categoria" class="form-select">
-        <option value="">Selecione a categoria...</option>
-        <option value="Eletrônicos">Eletrônicos</option>
-        <option value="Informática">Informática</option>
-        <option value="Móveis">Móveis</option>
-        <option value="Material de Escritório">Material de Escritório</option>
-        <option value="Alimentação">Alimentação</option>
-        <option value="Vestuário">Vestuário</option>
-        <option value="Serviços">Serviços</option>
-        <option value="Outros">Outros</option>
-      </select>
+      <input type="text" id="prod-categoria" class="form-input" placeholder="Ex: Material Escolar" maxlength="80">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -362,7 +696,7 @@ function openProdutoModal(id) {
         <input type="number" id="prod-custo" class="form-input" step="0.01" min="0" placeholder="0.00">
       </div>
       <div class="form-group">
-        <label class="form-label">Preco (R$)</label>
+        <label class="form-label">Preço (R$)</label>
         <input type="number" id="prod-preco" class="form-input" step="0.01" min="0" placeholder="0.00">
       </div>
     </div>
@@ -375,7 +709,7 @@ function openProdutoModal(id) {
         <label class="form-label">Ativo</label>
         <select id="prod-ativo" class="form-select">
           <option value="true">Sim</option>
-          <option value="false">Nao</option>
+          <option value="false">Não</option>
         </select>
       </div>
     </div>
@@ -440,7 +774,7 @@ async function deleteProduto(id) {
 
   try {
     await apiDelete(`/produtos/${id}`);
-    showToast('Produto excluido', 'success');
+    showToast('Produto excluído', 'success');
     loadProdutos();
     loadDashboard();
   } catch (err) {
@@ -449,66 +783,84 @@ async function deleteProduto(id) {
 }
 async function loadMovimentacoes() {
   const tbody = document.getElementById('movimentacoes-tbody');
+  const countBadge = document.getElementById('movimentacoes-count');
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="11"><div class="loading-overlay"><div class="spinner"></div> Carregando...</div></td></tr>';
+  tbody.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando...</div>';
 
   try {
-    const movimentacoes = await apiGet('/movimentacoes');
-    document.getElementById('movimentacoes-count').textContent = `${movimentacoes.length} itens`;
+    let movimentacoes = await apiGet('/movimentacoes');
+    
+    // Aplicar filtro se existir
+    if (window.movTypeFilter) {
+      movimentacoes = movimentacoes.filter(m => m.tipo === window.movTypeFilter);
+    }
+
+    if (countBadge) countBadge.textContent = `${movimentacoes.length} itens`;
 
     if (movimentacoes.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="11">${buildEmptyState('Nenhuma movimentação registrada', 'Clique em "Nova Movimentação" para começar', '$')}</td></tr>`;
+      tbody.innerHTML = buildEmptyState('Nenhuma movimentação encontrada', window.movTypeFilter ? 'Tente limpar o filtro para ver tudo.' : 'Clique em "Nova Movimentação" para começar', '$');
       return;
     }
 
-    const grupos = movimentacoes
-      .slice()
-      .sort((a, b) => {
-        const clienteA = (a.cliente || '').localeCompare(b.cliente || '', 'pt-BR', { sensitivity: 'base' });
-        if (clienteA !== 0) return clienteA;
-        return (b.id || 0) - (a.id || 0);
-      })
-      .reduce((acc, movimentacao) => {
-        const cliente = movimentacao.cliente || 'Sem cliente';
-        if (!acc[cliente]) acc[cliente] = [];
-        acc[cliente].push(movimentacao);
-        return acc;
-      }, {});
+    // Sort globally
+    movimentacoes.sort((a, b) => {
+      const dateA = new Date(a.data).getTime() || 0;
+      const dateB = new Date(b.data).getTime() || 0;
+      if (dateB !== dateA) return dateB - dateA;
+      return (b.id || 0) - (a.id || 0);
+    });
 
-    tbody.innerHTML = Object.entries(grupos).map(([cliente, itens]) => `
-      <tr class="client-group-row">
-        <td colspan="11">
-          <div class="client-group-label">
-            <span>${escapeHtml(cliente)}</span>
-            <span>${itens.length} lancamento(s)</span>
+    let html = '';
+    
+    // Se estiver filtrado, adicionar aviso e botão de limpar
+    if (window.movTypeFilter) {
+      const label = window.movTypeFilter === 'ENTRADA' ? 'Entradas' : 'Saídas';
+      html += `
+        <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; background: rgba(56, 189, 248, 0.1); padding: 12px 18px; border-radius: var(--radius-md); border: 1px solid var(--border-hover);">
+          <div style="font-size: 13px; font-weight: 600;">
+            <span class="text-primary">Filtro Ativo:</span> Mostrando apenas <b>${label}</b>
           </div>
-        </td>
-      </tr>
-      ${itens.map(movimentacao => `
-        <tr>
-          <td><span class="badge badge-neutral">#${movimentacao.id}</span></td>
-          <td class="td-name">${escapeHtml(movimentacao.cliente)}</td>
-          <td>${movimentacao.tipo === 'ENTRADA'
-            ? '<span class="badge badge-success">ENTRADA</span>'
-            : '<span class="badge badge-danger">SAIDA</span>'}</td>
-          <td class="td-name">${escapeHtml(movimentacao.descricao)}</td>
-          <td>${escapeHtml(movimentacao.categoria)}</td>
-          <td>${escapeHtml(formatTipoPagamento(movimentacao.tipoPagamento))}</td>
-          <td>${escapeHtml(formatParcelas(movimentacao.quantidadeParcelas, movimentacao.valor))}</td>
-          <td>${formatDate(movimentacao.dataPrimeiroVencimento)}</td>
-          <td><strong class="${movimentacao.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'}">${formatCurrency(movimentacao.valor)}</strong></td>
-          <td>${formatDate(movimentacao.data)}</td>
-          <td class="td-actions">
-            <button class="btn btn-ghost btn-sm" onclick="openMovimentacaoModal(${movimentacao.id})">Editar</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteMovimentacao(${movimentacao.id})">Excluir</button>
-          </td>
-        </tr>
-      `).join('')}
-    `).join('');
+          <button class="btn btn-ghost btn-sm" onclick="window.movTypeFilter = null; loadMovimentacoes();" style="font-size: 11px;">Limpar Filtro</button>
+        </div>
+      `;
+    }
+
+    html += movimentacoes.map(movimentacao => {
+      const isEntrada = movimentacao.tipo === 'ENTRADA';
+      const iconClass = isEntrada ? 'entrada' : 'saida';
+      const symbol = isEntrada ? '+' : '-';
+      const colorClass = isEntrada ? 'text-success' : 'text-danger';
+
+      return `
+        <div class="timeline-item">
+          <div class="timeline-icon ${iconClass}">${symbol}</div>
+          <div class="timeline-content" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s;" onmouseenter="this.style.borderColor='var(--border-hover)'" onmouseleave="this.style.borderColor='var(--border)'">
+            <div style="flex: 1;">
+              <div class="timeline-date">${formatDate(movimentacao.data)} &bull; ${escapeHtml(movimentacao.categoria)}</div>
+              <div class="timeline-title">${escapeHtml(movimentacao.descricao)}</div>
+              <div class="timeline-details">
+                Cliente: <b>${escapeHtml(movimentacao.cliente)}</b> &nbsp;|&nbsp; 
+                ${escapeHtml(formatTipoPagamento(movimentacao.tipoPagamento))} 
+                (${escapeHtml(formatParcelas(movimentacao.quantidadeParcelas, movimentacao.valor))})
+              </div>
+            </div>
+            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+              <strong class="${colorClass}" style="font-size: 16px;">${formatCurrency(movimentacao.valor)}</strong>
+              <div style="display: flex; gap: 4px;">
+                <button class="btn btn-ghost btn-sm" onclick="openMovimentacaoModal(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px;">Editar</button>
+                <button class="btn btn-ghost btn-sm" onclick="deleteMovimentacao(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px; color: var(--accent-danger);">Excluir</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    tbody.innerHTML = html;
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="11">${buildEmptyState('Falha ao carregar movimentacoes', err.message)}</td></tr>`;
-    showToast(`Erro ao carregar movimentacoes: ${err.message}`, 'error');
+    tbody.innerHTML = buildEmptyState('Falha ao carregar movimentações', err.message);
+    showToast(`Erro ao carregar movimentações: ${err.message}`, 'error');
   }
 }
 
@@ -547,18 +899,7 @@ function openMovimentacaoModal(id) {
     </div>
     <div class="form-group">
       <label class="form-label">Categoria</label>
-      <select id="mov-categoria" class="form-select">
-        <option value="">Selecione a categoria...</option>
-        <option value="Vendas">Vendas</option>
-        <option value="Compras">Compras</option>
-        <option value="Serviços Prestados">Serviços Prestados</option>
-        <option value="Serviços Contratados">Serviços Contratados</option>
-        <option value="Despesas Operacionais">Despesas Operacionais</option>
-        <option value="Salários">Salários</option>
-        <option value="Impostos e Taxas">Impostos e Taxas</option>
-        <option value="Aluguel">Aluguel</option>
-        <option value="Outros">Outros</option>
-      </select>
+      <input type="text" id="mov-categoria" class="form-input" placeholder="Ex: Vendas" maxlength="80">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -571,7 +912,7 @@ function openMovimentacaoModal(id) {
       <div class="form-group">
         <label class="form-label">Parcelas</label>
         <input type="number" id="mov-quantidade-parcelas" class="form-input" min="1" max="360" value="1" oninput="updateMovimentacaoParcelaPreview()">
-        <div class="form-hint" id="mov-parcelas-preview">Pagamento em parcela unica.</div>
+        <div class="form-hint" id="mov-parcelas-preview">Pagamento em parcela única.</div>
       </div>
     </div>
     <div class="form-group">
@@ -602,7 +943,7 @@ function openMovimentacaoModal(id) {
         document.getElementById('mov-primeiro-vencimento').value = movimentacao.dataPrimeiroVencimento;
         syncMovimentacaoPagamentoFields();
       })
-      .catch(err => showToast(`Erro ao carregar movimentacao: ${err.message}`, 'error'));
+      .catch(err => showToast(`Erro ao carregar movimentação: ${err.message}`, 'error'));
   }
 }
 
@@ -647,7 +988,7 @@ async function saveMovimentacao() {
   }
 
   if (!data.cliente || !data.descricao || !data.categoria || !data.data || !data.dataPrimeiroVencimento) {
-    showToast('Preencha todos os campos obrigatorios', 'error');
+    showToast('Preencha todos os campos obrigatórios', 'error');
     return;
   }
 
@@ -674,7 +1015,7 @@ async function saveMovimentacao() {
 }
 
 async function deleteMovimentacao(id) {
-  if (!confirm('Tem certeza que deseja excluir esta movimentacao?')) return;
+  if (!confirm('Tem certeza que deseja excluir esta movimentação?')) return;
 
   try {
     await apiDelete(`/movimentacoes/${id}`);
@@ -723,7 +1064,7 @@ function renderFechamentoPorCliente(fechamentoPorCliente) {
     return `
       <div class="card mt-4">
         <div class="card-body">
-          ${buildEmptyState('Nenhum cliente com parcelas no periodo selecionado.', 'Cadastre movimentacoes com cliente e vencimento para acompanhar o fechamento mensal.')}
+          ${buildEmptyState('Nenhum cliente com parcelas no período selecionado.', 'Cadastre movimentações com cliente e vencimento para acompanhar o fechamento mensal.')}
         </div>
       </div>
     `;
@@ -740,9 +1081,9 @@ function renderFechamentoPorCliente(fechamentoPorCliente) {
             <tr>
               <th>Cliente</th>
               <th>Movimentado</th>
-              <th>Devido no periodo</th>
-              <th>Qtd. lancamentos</th>
-              <th>Proximo vencimento</th>
+              <th>Devido no período</th>
+              <th>Qtd. lançamentos</th>
+              <th>Próximo vencimento</th>
             </tr>
           </thead>
           <tbody>
@@ -774,7 +1115,7 @@ function renderFechamentoPorCliente(fechamentoPorCliente) {
                 <strong>${formatCurrency(cliente.valorTotalMovimentado)}</strong>
               </div>
               <div class="report-client-metric">
-                <span>Lancamentos no periodo</span>
+                <span>Lançamentos no período</span>
                 <strong>${cliente.quantidadeMovimentacoes}</strong>
               </div>
               <div class="report-client-metric">
@@ -784,12 +1125,12 @@ function renderFechamentoPorCliente(fechamentoPorCliente) {
             </div>
 
             <div class="report-client-section">
-              <h3>Quanto deve por mes</h3>
+              <h3>Quanto deve por mês</h3>
               <div class="table-wrapper">
                 <table>
                   <thead>
                     <tr>
-                      <th>Mes</th>
+                      <th>Mês</th>
                       <th>Valor devido</th>
                     </tr>
                   </thead>
@@ -806,18 +1147,18 @@ function renderFechamentoPorCliente(fechamentoPorCliente) {
             </div>
 
             <div class="report-client-section">
-              <h3>Movimentacoes do cliente</h3>
+              <h3>Movimentações do cliente</h3>
               <div class="table-wrapper">
                 <table>
                   <thead>
                     <tr>
-                      <th>Descricao</th>
+                      <th>Descrição</th>
                       <th>Categoria</th>
                       <th>Valor</th>
                       <th>Data</th>
                       <th>Pagamento</th>
                       <th>Parcelas</th>
-                      <th>1o vencimento</th>
+                      <th>1º vencimento</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -856,13 +1197,7 @@ async function loadRelatorioFinanceiro() {
     return;
   }
 
-  if (inicio > fim) {
-    showToast('A data de início não pode ser maior que a data fim', 'error');
-    document.getElementById('rel-data-inicio').focus();
-    return;
-  }
-
-  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Gerando relatorio...</div>';
+  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Gerando relatório...</div>';
 
   try {
     const relatorio = await apiGet(`/relatorios/financeiro?dataInicio=${inicio}&dataFim=${fim}`);
@@ -874,15 +1209,15 @@ async function loadRelatorioFinanceiro() {
       </div>
       <div class="kpi-grid">
         <div class="kpi-card" data-color="emerald">
-          <div class="kpi-label">Entradas no periodo</div>
+          <div class="kpi-label">Entradas no período</div>
           <div class="kpi-value text-success">${formatCurrency(relatorio.totalEntradas)}</div>
         </div>
         <div class="kpi-card" data-color="red">
-          <div class="kpi-label">Saidas no periodo</div>
+          <div class="kpi-label">Saídas no período</div>
           <div class="kpi-value text-danger">${formatCurrency(relatorio.totalSaidas)}</div>
         </div>
         <div class="kpi-card" data-color="${relatorio.saldoPeriodo >= 0 ? 'emerald' : 'red'}">
-          <div class="kpi-label">Saldo do periodo</div>
+          <div class="kpi-label">Saldo do período</div>
           <div class="kpi-value ${relatorio.saldoPeriodo >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(relatorio.saldoPeriodo)}</div>
         </div>
         <div class="kpi-card" data-color="amber">
@@ -890,15 +1225,15 @@ async function loadRelatorioFinanceiro() {
           <div class="kpi-value">${relatorio.quantidadeMovimentacoes}</div>
         </div>
         <div class="kpi-card" data-color="cyan">
-          <div class="kpi-label">Media diaria de entradas</div>
+          <div class="kpi-label">Média diária de entradas</div>
           <div class="kpi-value">${formatCurrency(relatorio.mediaDiariaEntradas)}</div>
         </div>
         <div class="kpi-card" data-color="violet">
-          <div class="kpi-label">Media diaria de saidas</div>
+          <div class="kpi-label">Média diária de saídas</div>
           <div class="kpi-value">${formatCurrency(relatorio.mediaDiariaSaidas)}</div>
         </div>
         <div class="kpi-card" data-color="indigo">
-          <div class="kpi-label">Clientes com debitos</div>
+          <div class="kpi-label">Clientes com débitos</div>
           <div class="kpi-value">${relatorio.totalClientesComDebitos || 0}</div>
         </div>
         <div class="kpi-card" data-color="emerald">
@@ -908,37 +1243,37 @@ async function loadRelatorioFinanceiro() {
       </div>
 
       ${renderCategoriaTable('Entradas por categoria', relatorio.entradasPorCategoria, 'success')}
-      ${renderCategoriaTable('Saidas por categoria', relatorio.saidasPorCategoria, 'danger')}
+      ${renderCategoriaTable('Saídas por categoria', relatorio.saidasPorCategoria, 'danger')}
       ${renderFechamentoPorCliente(relatorio.fechamentoPorCliente)}
     `;
 
     showToast('Relatório financeiro gerado', 'success');
   } catch (err) {
-    container.innerHTML = buildEmptyState('Falha ao gerar relatorio', err.message);
+    container.innerHTML = buildEmptyState('Falha ao gerar relatório', err.message);
     showToast(`Erro: ${err.message}`, 'error');
   }
 }
 
 function exportRelatorioFinanceiroCSV() {
   if (!lastRelatorioFinanceiroData) {
-    showToast('Gere o relatorio antes de exportar', 'error');
+    showToast('Gere o relatório antes de exportar', 'error');
     return;
   }
 
   const { relatorio, inicio, fim } = lastRelatorioFinanceiroData;
   let csv = '';
 
-  csv += 'RELATORIO FINANCEIRO\n';
-  csv += `Periodo;${inicio};${fim}\n`;
+  csv += 'RELATÓRIO FINANCEIRO\n';
+  csv += `Período;${inicio};${fim}\n`;
   csv += '\n';
   csv += 'RESUMO\n';
   csv += `Total Entradas;${relatorio.totalEntradas}\n`;
-  csv += `Total Saidas;${relatorio.totalSaidas}\n`;
-  csv += `Saldo Periodo;${relatorio.saldoPeriodo}\n`;
-  csv += `Numero de Movimentacoes;${relatorio.quantidadeMovimentacoes}\n`;
-  csv += `Media Diaria Entradas;${relatorio.mediaDiariaEntradas}\n`;
-  csv += `Media Diaria Saidas;${relatorio.mediaDiariaSaidas}\n`;
-  csv += `Clientes com Debitos;${relatorio.totalClientesComDebitos || 0}\n`;
+  csv += `Total Saídas;${relatorio.totalSaidas}\n`;
+  csv += `Saldo Período;${relatorio.saldoPeriodo}\n`;
+  csv += `Número de Movimentações;${relatorio.quantidadeMovimentacoes}\n`;
+  csv += `Média Diária Entradas;${relatorio.mediaDiariaEntradas}\n`;
+  csv += `Média Diária Saídas;${relatorio.mediaDiariaSaidas}\n`;
+  csv += `Clientes com Débitos;${relatorio.totalClientesComDebitos || 0}\n`;
   csv += `Total Devido por Cliente;${relatorio.totalDevidoPorClientesNoPeriodo}\n`;
   csv += '\n';
 
@@ -952,7 +1287,7 @@ function exportRelatorioFinanceiroCSV() {
   }
 
   if (relatorio.saidasPorCategoria && relatorio.saidasPorCategoria.length > 0) {
-    csv += 'SAIDAS POR CATEGORIA\n';
+    csv += 'SAÍDAS POR CATEGORIA\n';
     csv += 'Categoria;Quantidade;Valor Total\n';
     relatorio.saidasPorCategoria.forEach(item => {
       csv += `${item.categoria};${item.quantidade};${item.valorTotal}\n`;
@@ -962,14 +1297,14 @@ function exportRelatorioFinanceiroCSV() {
 
   if (relatorio.fechamentoPorCliente && relatorio.fechamentoPorCliente.length > 0) {
     csv += 'FECHAMENTO POR CLIENTE\n';
-    csv += 'Cliente;Total Movimentado;Devido no Periodo;Qtd Lancamentos;Proximo Vencimento\n';
+    csv += 'Cliente;Total Movimentado;Devido no Período;Qtd Lançamentos;Próximo Vencimento\n';
     relatorio.fechamentoPorCliente.forEach(cliente => {
       csv += `${cliente.cliente};${cliente.valorTotalMovimentado};${cliente.valorDevidoNoPeriodo};${cliente.quantidadeMovimentacoes};${cliente.proximoVencimento}\n`;
     });
     csv += '\n';
 
-    csv += 'MOVIMENTACOES POR CLIENTE\n';
-    csv += 'Cliente;Descricao;Categoria;Valor;Data;Tipo Pagamento;Quantidade Parcelas;Data Primeiro Vencimento\n';
+    csv += 'MOVIMENTAÇÕES POR CLIENTE\n';
+    csv += 'Cliente;Descrição;Categoria;Valor;Data;Tipo Pagamento;Quantidade Parcelas;Data Primeiro Vencimento\n';
     relatorio.fechamentoPorCliente.forEach(cliente => {
       cliente.movimentacoes.forEach(mov => {
         csv += `${cliente.cliente};${mov.descricao};${mov.categoria};${mov.valor};${mov.data};${mov.tipoPagamento};${mov.quantidadeParcelas};${mov.dataPrimeiroVencimento}\n`;
@@ -978,15 +1313,15 @@ function exportRelatorioFinanceiroCSV() {
     csv += '\n';
   }
 
-  csv += 'DEBITOS MENSAIS POR CLIENTE\n';
-  csv += 'Cliente;Competencia;Valor Devido\n';
+  csv += 'DÉBITOS MENSAIS POR CLIENTE\n';
+  csv += 'Cliente;Competência;Valor Devido\n';
   relatorio.fechamentoPorCliente.forEach(cliente => {
     cliente.debitosMensais.forEach(debito => {
       csv += `${cliente.cliente};${debito.competencia};${debito.valorDevido}\n`;
     });
   });
 
-  downloadCSV(csv, `relatorio_financeiro_${inicio}_${fim}.csv`);
+  downloadCSV(csv, `relatório_financeiro_${inicio}_${fim}.csv`);
   showToast('CSV exportado com sucesso', 'success');
 }
 
@@ -1006,7 +1341,7 @@ function downloadCSV(csv, filename) {
 
 async function loadRelatorioProdutos() {
   const container = document.getElementById('relatorio-produtos-content');
-  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Gerando relatorio...</div>';
+  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Gerando relatório...</div>';
 
   try {
     const relatorio = await apiGet('/relatorios/produtos');
@@ -1076,23 +1411,23 @@ async function loadRelatorioProdutos() {
       ` : buildEmptyState('Sem categorias para exibir')}
     `;
 
-    showToast('Relatorio de produtos gerado', 'success');
+    showToast('Relatório de produtos gerado', 'success');
   } catch (err) {
-    container.innerHTML = buildEmptyState('Falha ao gerar relatorio', err.message);
+    container.innerHTML = buildEmptyState('Falha ao gerar relatório', err.message);
     showToast(`Erro: ${err.message}`, 'error');
   }
 }
 
 function exportRelatorioProdutosCSV() {
   if (!lastRelatorioProdutosData) {
-    showToast('Gere o relatorio antes de exportar', 'error');
+    showToast('Gere o relatório antes de exportar', 'error');
     return;
   }
 
   const r = lastRelatorioProdutosData;
   let csv = '';
 
-  csv += 'RELATORIO DE PRODUTOS\n';
+  csv += 'RELATÓRIO DE PRODUTOS\n';
   csv += '\n';
   csv += 'RESUMO\n';
   csv += `Total Produtos;${r.totalProdutos}\n`;
@@ -1135,7 +1470,7 @@ function clearTimeline() {
 
   timeline.innerHTML = buildEmptyState(
     'A linha do tempo foi limpa apenas na interface.',
-    'Clique em "Atualizar" para recarregar as movimentacoes do banco.',
+    'Clique em "Atualizar" para recarregar as movimentações do banco.',
     'X'
   );
 
@@ -1147,7 +1482,7 @@ function renderLogs() {
   if (!consoleEl) return;
 
   if (window.appLogs.length === 0) {
-    consoleEl.innerHTML = '<div class="log-entry info"><span class="log-time">--:--:--</span> Nenhum log registrado ate o momento.</div>';
+    consoleEl.innerHTML = '<div class="log-entry info"><span class="log-time">--:--:--</span> Nenhum log registrado até o momento.</div>';
     return;
   }
 
@@ -1162,7 +1497,7 @@ async function loadHistorico() {
   const timeline = document.getElementById('historico-timeline');
   if (!timeline) return;
 
-  timeline.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando historico...</div>';
+  timeline.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando histórico...</div>';
   renderLogs();
 
   try {
@@ -1170,7 +1505,7 @@ async function loadHistorico() {
     movimentacoes.sort((a, b) => b.id - a.id);
 
     if (movimentacoes.length === 0) {
-      timeline.innerHTML = buildEmptyState('Nenhum evento registrado no historico.', '', '[]');
+      timeline.innerHTML = buildEmptyState('Nenhum evento registrado no histórico.', '', '[]');
       return;
     }
 
@@ -1181,7 +1516,7 @@ async function loadHistorico() {
         <div class="timeline-item">
           <div class="timeline-icon ${isEntrada ? 'entrada' : 'saida'}">${isEntrada ? '+' : '-'}</div>
           <div class="timeline-content">
-            <div class="timeline-date">${formatDate(item.data)} - Movimentacao #${item.id}</div>
+            <div class="timeline-date">${formatDate(item.data)} - Movimentação #${item.id}</div>
             <div class="timeline-title">${escapeHtml(item.descricao)}</div>
             <div class="timeline-details">
               Cliente: <strong>${escapeHtml(item.cliente || 'Sem cliente')}</strong>
@@ -1197,10 +1532,10 @@ async function loadHistorico() {
       `;
     }).join('');
 
-    addAppLog('info', 'Historico e timeline atualizados com sucesso.');
+    addAppLog('info', 'Histórico e timeline atualizados com sucesso.');
   } catch (err) {
     timeline.innerHTML = buildEmptyState('Falha ao carregar linha do tempo', err.message);
-    showToast(`Erro ao carregar historico: ${err.message}`, 'error');
+    showToast(`Erro ao carregar histórico: ${err.message}`, 'error');
   }
 }
 
@@ -1244,7 +1579,7 @@ function renderInfraEndpoints(endpoints) {
 
 function renderWarningList(warnings) {
   if (!warnings.length) {
-    return buildEmptyState('Nenhum alerta dinamico retornado.');
+    return buildEmptyState('Nenhum alerta dinâmico retornado.');
   }
 
   return `
@@ -1282,7 +1617,7 @@ async function loadInfraestrutura() {
     const sshCommand = `ssh -i <sua-chave> ubuntu@${window.location.hostname} -p ${infra.access.sshPort}`;
     const docsStatus = (openApiStatus.ok || swaggerStatus.ok)
       ? `Docs online (${openApiStatus.status}/${swaggerStatus.status})`
-      : `Docs indisponiveis (${openApiStatus.status}/${swaggerStatus.status})`;
+      : `Docs indisponíveis (${openApiStatus.status}/${swaggerStatus.status})`;
 
     container.innerHTML = `
       <section class="card server-hero">
@@ -1290,8 +1625,8 @@ async function loadInfraestrutura() {
           <span class="badge badge-info">Infra live</span>
           <h2 class="server-hero-title">${escapeHtml(infra.application.displayName)}</h2>
           <p class="server-hero-text">
-            Aplicacao publicada como ${escapeHtml(infra.application.packaging)} em
-            <code>${escapeHtml(infra.runtime.operatingSystem)}</code>, acessivel em
+            Aplicação publicada como ${escapeHtml(infra.application.packaging)} em
+            <code>${escapeHtml(infra.runtime.operatingSystem)}</code>, acessível em
             <code>${escapeHtml(frontendUrl)}</code>.
           </p>
           <div class="server-badge-row">
@@ -1324,7 +1659,7 @@ async function loadInfraestrutura() {
             <div class="kpi-value">${(dashboard.totalItensEmEstoque || 0).toLocaleString('pt-BR')}</div>
           </div>
           <div class="kpi-card" data-color="amber">
-            <div class="kpi-label">Movimentacoes</div>
+            <div class="kpi-label">Movimentações</div>
             <div class="kpi-value">${(dashboard.totalMovimentacoes || 0).toLocaleString('pt-BR')}</div>
           </div>
         </div>
@@ -1362,7 +1697,7 @@ async function loadInfraestrutura() {
           <div class="card-body">
             <div class="server-info-pair"><span>Engine</span><strong>${escapeHtml(infra.database.engine)}</strong></div>
             <div class="server-info-pair"><span>Modo</span><strong>${escapeHtml(infra.database.mode)}</strong></div>
-            <div class="server-info-pair"><span>Usuario</span><strong>${escapeHtml(infra.database.username || 'nao informado')}</strong></div>
+            <div class="server-info-pair"><span>Usuário</span><strong>${escapeHtml(infra.database.username || 'não informado')}</strong></div>
             <div class="server-code-block">
               <span>JDBC URL</span>
               <code>${escapeHtml(infra.database.url)}</code>
@@ -1413,7 +1748,7 @@ async function loadInfraestrutura() {
 
         <section class="card server-panel server-panel-wide">
           <div class="card-header">
-            <span class="card-title">Riscos e observacoes</span>
+            <span class="card-title">Riscos e observações</span>
           </div>
           <div class="card-body">
             ${renderWarningList(infra.warnings || [])}
@@ -1467,7 +1802,7 @@ async function checkSystemHealth() {
     text.textContent = 'API offline';
     text.style.color = 'var(--accent-danger)';
     wrapper.style.background = 'rgba(239, 68, 68, 0.1)';
-    addAppLog('error', 'Sem conexao com o servidor backend.');
+    addAppLog('error', 'Sem conexão com o servidor backend.');
   }
 }
 
