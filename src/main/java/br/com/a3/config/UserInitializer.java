@@ -18,6 +18,12 @@ public class UserInitializer {
     @Value("${app.admin.password}")
     private String adminPassword;
 
+    @Value("${app.user2.username}")
+    private String user2Username;
+
+    @Value("${app.user2.password}")
+    private String user2Password;
+
     private final PasswordEncoder passwordEncoder;
 
     public UserInitializer(PasswordEncoder passwordEncoder) {
@@ -32,6 +38,12 @@ public class UserInitializer {
                 .roles("ADMIN")
                 .build();
 
-        return new InMemoryUserDetailsManager(admin);
+        UserDetails user2 = User.builder()
+                .username(user2Username)
+                .password(passwordEncoder.encode(user2Password))
+                .roles("ADMIN")
+                .build();
+
+        return new InMemoryUserDetailsManager(admin, user2);
     }
 }

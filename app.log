@@ -15,7 +15,7 @@
 [INFO] Nothing to compile - all classes are up to date.
 [INFO] 
 [INFO] --- resources:3.3.1:testResources (default-testResources) @ a3-anima-gestao_financeira ---
-[INFO] skip non existing resourceDirectory C:\Users\Wellinton_Voss\OneDrive\Área de Trabalho\A3\a3-anima-gestao_financeira\src\test\resources
+[INFO] skip non existing resourceDirectory C:\Users\Wellinton_Voss\OneDrive\ï¿½rea de Trabalho\A3\a3-anima-gestao_financeira\src\test\resources
 [INFO] 
 [INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ a3-anima-gestao_financeira ---
 [INFO] Nothing to compile - all classes are up to date.
