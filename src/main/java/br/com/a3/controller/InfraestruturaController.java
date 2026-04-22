@@ -66,6 +66,14 @@ public class InfraestruturaController {
         return payload;
     }
 
+    @GetMapping("/sql-logs")
+    public List<br.com.a3.config.SqlStatementInterceptor.LogEntry> consultarLogsSql() {
+        // Retorna a fila em formato de lista, reverso para o mais novo aparecer primeiro
+        List<br.com.a3.config.SqlStatementInterceptor.LogEntry> logs = new ArrayList<>(br.com.a3.config.SqlStatementInterceptor.SQL_LOGS);
+        java.util.Collections.reverse(logs);
+        return logs;
+    }
+
     private Map<String, Object> buildApplication() {
         LinkedHashMap<String, Object> application = new LinkedHashMap<>();
         application.put("name", applicationName);
