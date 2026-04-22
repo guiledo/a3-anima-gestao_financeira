@@ -10,7 +10,7 @@ function handleLogin() {
   const pass = document.getElementById('login-pass').value;
   
   const authorizedUsers = {
-    'a3_admin_2026': 'gentaofinanceira2026',
+    'a3_admin_2026': 'gestaofinanceira2026',
     'admin_gestao': 'a3_gestao_2026'
   };
   
@@ -50,9 +50,9 @@ function updateMobilePageTitle(page) {
     produtos: 'Produtos',
     movimentacoes: 'Movimentações',
     relatorios: 'Relatórios',
-    historico: 'Histórico e Logs',
-    infraestrutura: 'Infraestrutura'
-  };
+    historico: 'Histórico',
+    infraestrutura: 'Ferramentas do Desenvolvedor'
+    };
 
   title.textContent = labels[page] || 'Gestão Financeira';
 }
@@ -88,6 +88,11 @@ function syncResponsiveLayout() {
 }
 
 function navigateTo(page) {
+  if (window.sqlLogsInterval) {
+    clearInterval(window.sqlLogsInterval);
+    window.sqlLogsInterval = null;
+  }
+
   document.querySelectorAll('.page').forEach(node => node.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(node => node.classList.remove('active'));
 
@@ -1666,6 +1671,17 @@ async function loadInfraestrutura() {
       ` : ''}
 
       <div class="server-grid">
+        <section class="card server-panel server-panel-wide">
+          <div class="card-header">
+            <span class="card-title">Monitor SQL (Tempo Real)</span>
+          </div>
+          <div class="card-body">
+            <div id="live-sql-logs" style="max-height: 400px; overflow-y: auto; background: var(--bg-tertiary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; color: var(--text-secondary); white-space: pre-wrap;">
+              Carregando logs do banco de dados...
+            </div>
+          </div>
+        </section>
+
         <section class="card server-panel">
           <div class="card-header">
             <span class="card-title">Como conectar</span>
@@ -1756,10 +1772,65 @@ async function loadInfraestrutura() {
         </section>
       </div>
     `;
+
+    startSqlLogsPolling();
   } catch (err) {
     container.innerHTML = buildEmptyState('Falha ao carregar infraestrutura', err.message);
     showToast(`Erro ao carregar infraestrutura: ${err.message}`, 'error');
   }
+}
+
+function startSqlLogsPolling() {
+  const fetchLogs = async () => {
+    try {
+      let logs = await apiGet('/infra/sql-logs');
+      const container = document.getElementById('live-sql-logs');
+      if (!container) return;
+
+      if (!window.showSqlSelects) {
+        logs = logs.filter(log => !log.sql.toLowerCase().startsWith('select'));
+      }
+
+      if (logs.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-tertiary)">Nenhuma query SQL registrada (ou os SELECTs estão ocultos).</div>';
+        return;
+      }
+
+      container.innerHTML = logs.map(log => {
+        let highlightedSql = escapeHtml(log.sql);
+        
+        // Remove os placeholders '?' e limpa as vírgulas/espaços que sobram
+        highlightedSql = highlightedSql.replace(/\?/g, '');
+        highlightedSql = highlightedSql.replace(/,\s*,/g, ',');
+        highlightedSql = highlightedSql.replace(/\(\s*,/g, '(');
+        highlightedSql = highlightedSql.replace(/,\s*\)/g, ')');
+        highlightedSql = highlightedSql.replace(/\(\s+\)/g, '(...)');
+        highlightedSql = highlightedSql.replace(/=\s*([^\w])/g, '$1');
+
+        // Adiciona quebra de linha com recuo antes de palavras-chave principais
+        highlightedSql = highlightedSql.replace(
+          /\s(from|where|left outer join|inner join|right join|order by|group by|having|limit|offset|values|set)/gi,
+          match => `<br>&nbsp;&nbsp;${match.trim()}`
+        );
+
+        // Destaca as palavras-chave
+        highlightedSql = highlightedSql.replace(
+          /\b(select|insert|update|delete|from|where|and|or|join|inner|left|right|outer|on|group by|order by|asc|desc|limit|offset|set|values|into|create|alter|drop|table|index)\b/gi,
+          match => `<strong style="color: #10b981; text-transform: uppercase;">${match.toUpperCase()}</strong>`
+        );
+
+        return `<div style="margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px dotted var(--border-color); font-size: 11px; line-height: 1.1;">
+          <span style="color: var(--text-accent); font-weight: bold; opacity: 0.8; margin-right: 6px;">[${escapeHtml(log.timestamp)}]</span>
+          <span style="color: var(--text-primary);">${highlightedSql}</span>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      console.error('Falha ao buscar logs SQL', e);
+    }
+  };
+
+  fetchLogs(); // run immediately
+  window.sqlLogsInterval = setInterval(fetchLogs, 2000); // refresh every 2s
 }
 
 function setDefaultDates() {

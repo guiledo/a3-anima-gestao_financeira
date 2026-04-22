@@ -35,3 +35,7 @@ build/
 ### Local data ###
 data/*
 !data/.gitkeep
+
+### Environment Variables ###
+.env
+.env.local

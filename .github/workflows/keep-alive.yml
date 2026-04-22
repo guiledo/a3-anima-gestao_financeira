@@ -1,0 +1,25 @@
+name: Keep Supabase Database Alive
+
+on:
+  schedule:
+    - cron: '0 0 */2 * *' # Executa a cada 2 dias à meia-noite UTC
+  workflow_dispatch: # Permite execução manual no GitHub Actions
+
+jobs:
+  ping-database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL Client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        
+      - name: Ping Supabase Database
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret is not set, skipping ping..."
+            exit 0
+          fi
+          echo "Pinging database to keep it alive..."
+          psql $DATABASE_URL -c "SELECT 1;"
+
