@@ -1370,3 +1370,59 @@ tbody tr:last-child td { border-bottom: none; }
 .canvas-wrapper.clickable {
   cursor: pointer;
 }
+/* USUÁRIOS (ADMIN) */
+.grid-2{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+@media (max-width: 980px){
+  .grid-2{ grid-template-columns: 1fr; }
+}
+
+.user-list{
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+}
+
+.user-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  padding: 12px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.user-main{
+  display:flex;
+  flex-direction:column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.user-username{
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.user-meta{
+  font-size: 13px;
+  color: var(--text-secondary);
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  flex-wrap:wrap;
+}
+
+.user-actions{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+
+.muted{ color: var(--text-muted); font-size: 13px; }
