@@ -1,0 +1,48 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.3)
+
+2026-04-24T16:45:17.011-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : Starting A3AnimaGestaoFinanceiraApplication v0.0.1-SNAPSHOT using Java 25.0.2 with PID 16256 (C:\Users\Wellinton_Voss\OneDrive\Área de Trabalho\A3\a3-anima-gestao_financeira\target\a3-anima-gestao_financeira-0.0.1-SNAPSHOT.jar started by Wellinton_Voss in C:\Users\Wellinton_Voss\OneDrive\Área de Trabalho\A3\a3-anima-gestao_financeira)
+2026-04-24T16:45:17.019-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : No active profile set, falling back to 1 default profile: "default"
+2026-04-24T16:45:18.115-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-24T16:45:18.191-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 59 ms. Found 3 JPA repository interfaces.
+2026-04-24T16:45:18.950-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-04-24T16:45:18.984-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-24T16:45:18.987-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-04-24T16:45:19.049-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1940 ms
+2026-04-24T16:45:19.292-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-04-24T16:45:19.383-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.4.Final
+2026-04-24T16:45:20.206-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-24T16:45:20.266-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-24T16:45:21.038-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@511de4dd
+2026-04-24T16:45:21.042-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-24T16:45:21.106-03:00  WARN 16256 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-04-24T16:45:21.221-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://db.ticufuziiqrnehgleeht.supabase.co:5432/postgres]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.6
+	Default catalog/schema: postgres/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-04-24T16:45:25.450-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-24T16:45:25.744-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-24T16:45:26.121-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-04-24T16:45:27.107-03:00  WARN 16256 --- [a3-anima-gestao_financeira] [           main] o.s.aop.framework.CglibAopProxy          : Unable to proxy interface-implementing method [public final void org.springframework.web.filter.GenericFilterBean.init(jakarta.servlet.FilterConfig) throws jakarta.servlet.ServletException] because it is marked as final, consider using interface-based JDK proxies instead.
+2026-04-24T16:45:31.501-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name usuarioSistemaService
+2026-04-24T16:45:33.344-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page: class path resource [static/index.html]
+2026-04-24T16:45:35.770-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-04-24T16:45:35.818-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : Started A3AnimaGestaoFinanceiraApplication in 19.399 seconds (process running for 20.281)
+2026-04-24T16:45:48.479-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-24T16:45:48.479-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-04-24T16:45:48.479-03:00  INFO 16256 --- [a3-anima-gestao_financeira] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms

@@ -1,0 +1,93 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.3)
+
+2026-04-24T16:25:48.967-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : Starting A3AnimaGestaoFinanceiraApplication v0.0.1-SNAPSHOT using Java 25.0.2 with PID 4332 (C:\Users\Wellinton_Voss\OneDrive\Área de Trabalho\A3\a3-anima-gestao_financeira\target\a3-anima-gestao_financeira-0.0.1-SNAPSHOT.jar started by Wellinton_Voss in C:\Users\Wellinton_Voss\OneDrive\Área de Trabalho\A3\a3-anima-gestao_financeira)
+2026-04-24T16:25:48.976-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] b.c.a.A3AnimaGestaoFinanceiraApplication : No active profile set, falling back to 1 default profile: "default"
+2026-04-24T16:25:50.405-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-24T16:25:50.537-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 115 ms. Found 3 JPA repository interfaces.
+2026-04-24T16:25:51.556-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-04-24T16:25:51.606-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-24T16:25:51.607-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-04-24T16:25:51.668-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 2591 ms
+2026-04-24T16:25:51.870-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-04-24T16:25:51.994-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.4.Final
+2026-04-24T16:25:52.868-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-24T16:25:52.921-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-24T16:25:54.352-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@37c74e4e
+2026-04-24T16:25:54.357-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-24T16:25:54.446-03:00  WARN 4332 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-04-24T16:25:54.568-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://db.ticufuziiqrnehgleeht.supabase.co:5432/postgres]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 17.6
+	Default catalog/schema: postgres/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-04-24T16:25:56.158-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-24T16:25:56.580-03:00  WARN 4332 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-04-24T16:25:56.582-03:00  WARN 4332 --- [a3-anima-gestao_financeira] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk691e86xo91lah4ey74tqer7jn" of relation "usuarios_sistema" does not exist, skipping
+2026-04-24T16:25:56.603-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-24T16:25:56.708-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-04-24T16:25:57.044-03:00 ERROR 4332 --- [a3-anima-gestao_financeira] [           main] t.s.DeferredServletContainerInitializers : Error starting Tomcat context. Exception: org.springframework.beans.factory.UnsatisfiedDependencyException. Message: Error creating bean with name 'usuarioSessaoRefreshFilter' defined in URL [jar:nested:/C:/Users/Wellinton_Voss/OneDrive/Área%20de%20Trabalho/A3/a3-anima-gestao_financeira/target/a3-anima-gestao_financeira-0.0.1-SNAPSHOT.jar/!BOOT-INF/classes/!/br/com/a3/config/UsuarioSessaoRefreshFilter.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'usuarioSistemaService' defined in URL [jar:nested:/C:/Users/Wellinton_Voss/OneDrive/Área%20de%20Trabalho/A3/a3-anima-gestao_financeira/target/a3-anima-gestao_financeira-0.0.1-SNAPSHOT.jar/!BOOT-INF/classes/!/br/com/a3/service/UsuarioSistemaService.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'securityConfig' defined in URL [jar:nested:/C:/Users/Wellinton_Voss/OneDrive/Área%20de%20Trabalho/A3/a3-anima-gestao_financeira/target/a3-anima-gestao_financeira-0.0.1-SNAPSHOT.jar/!BOOT-INF/classes/!/br/com/a3/config/SecurityConfig.class]: Unsatisfied dependency expressed through constructor parameter 1: Error creating bean with name 'usuarioSessaoRefreshFilter': Requested bean is currently in creation: Is there an unresolvable circular reference or an asynchronous initialization dependency?
+2026-04-24T16:25:57.080-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-04-24T16:25:57.086-03:00  WARN 4332 --- [a3-anima-gestao_financeira] [           main] o.a.c.loader.WebappClassLoaderBase       : The web application [ROOT] appears to have started a thread named [HikariPool-1:housekeeper] but has failed to stop it. This is very likely to create a memory leak. Stack trace of thread:
+ java.base/jdk.internal.misc.Unsafe.park(Native Method)
+ java.base/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:271)
+ java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:1803)
+ java.base/java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1166)
+ java.base/java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:883)
+ java.base/java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1016)
+ java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1076)
+ java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+ java.base/java.lang.Thread.run(Thread.java:1474)
+2026-04-24T16:25:57.088-03:00  WARN 4332 --- [a3-anima-gestao_financeira] [           main] o.a.c.loader.WebappClassLoaderBase       : The web application [ROOT] appears to have started a thread named [HikariPool-1:connection-adder] but has failed to stop it. This is very likely to create a memory leak. Stack trace of thread:
+ java.base/jdk.internal.misc.Unsafe.park(Native Method)
+ java.base/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:271)
+ java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:1803)
+ java.base/java.util.concurrent.LinkedBlockingQueue.poll(LinkedBlockingQueue.java:460)
+ java.base/java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1015)
+ java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1076)
+ java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+ java.base/java.lang.Thread.run(Thread.java:1474)
+2026-04-24T16:25:57.094-03:00  WARN 4332 --- [a3-anima-gestao_financeira] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Unable to start web server
+2026-04-24T16:25:57.095-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-04-24T16:25:57.099-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-04-24T16:25:57.271-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-04-24T16:25:57.288-03:00  INFO 4332 --- [a3-anima-gestao_financeira] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-24T16:25:57.326-03:00 ERROR 4332 --- [a3-anima-gestao_financeira] [           main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+The dependencies of some of the beans in the application context form a cycle:
+
+┌─────┐
+|  usuarioSessaoRefreshFilter defined in URL [jar:nested:/C:/Users/Wellinton_Voss/OneDrive/Área%20de%20Trabalho/A3/a3-anima-gestao_financeira/target/a3-anima-gestao_financeira-0.0.1-SNAPSHOT.jar/!BOOT-INF/classes/!/br/com/a3/config/UsuarioSessaoRefreshFilter.class]
+↑     ↓
+|  usuarioSistemaService defined in URL [jar:nested:/C:/Users/Wellinton_Voss/OneDrive/Área%20de%20Trabalho/A3/a3-anima-gestao_financeira/target/a3-anima-gestao_financeira-0.0.1-SNAPSHOT.jar/!BOOT-INF/classes/!/br/com/a3/service/UsuarioSistemaService.class]
+↑     ↓
+|  securityConfig defined in URL [jar:nested:/C:/Users/Wellinton_Voss/OneDrive/Área%20de%20Trabalho/A3/a3-anima-gestao_financeira/target/a3-anima-gestao_financeira-0.0.1-SNAPSHOT.jar/!BOOT-INF/classes/!/br/com/a3/config/SecurityConfig.class]
+└─────┘
+
+
+Action:
+
+Relying upon circular references is discouraged and they are prohibited by default. Update your application to remove the dependency cycle between beans. As a last resort, it may be possible to break the cycle automatically by setting spring.main.allow-circular-references to true.
+
