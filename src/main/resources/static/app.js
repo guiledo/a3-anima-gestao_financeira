@@ -5,35 +5,134 @@ window.appLogs = [];
 window.currentDashboardData = null;
 window.movTypeFilter = null;
 
+const AUTH_STORAGE_KEY = 'a3_users_v1';
+
+function seedUsersIfNeeded() {
+  try {
+    const existing = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (existing) return;
+
+    const seeded = [
+      { username: 'a3_admin_2026', password: 'gestaofinanceira2026', role: 'ADMIN', name: 'Admin A3' },
+      { username: 'admin_gestao', password: 'a3_gestao_2026', role: 'ADMIN', name: 'Admin Gestão' },
+
+      // Usuário de demonstração (funcionário) para você ver a interface logada
+      { username: 'funcionario01', password: '123456', role: 'USER', name: 'Funcionário 01' },
+
+      // Admin simples (opcional)
+      { username: 'admin', password: 'admin123', role: 'ADMIN', name: 'Administrador' }
+    ];
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(seeded));
+  } catch (err) {
+    // Se localStorage estiver bloqueado, apenas segue.
+  }
+}
+
+function getUsers() {
+  seedUsersIfNeeded();
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    const users = raw ? JSON.parse(raw) : [];
+    return Array.isArray(users) ? users : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function saveUsers(users) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(users));
+}
+
+function getCurrentUser() {
+  const username = sessionStorage.getItem('authUserA3') || '';
+  const role = sessionStorage.getItem('authRoleA3') || '';
+  const name = sessionStorage.getItem('authNameA3') || '';
+  return { username, role, name };
+}
+
+function setCurrentUser(user) {
+  sessionStorage.setItem('authA3', 'true');
+  sessionStorage.setItem('authUserA3', user.username);
+  sessionStorage.setItem('authRoleA3', user.role);
+  sessionStorage.setItem('authNameA3', user.name || user.username);
+}
+
+function clearCurrentUser() {
+  sessionStorage.removeItem('authA3');
+  sessionStorage.removeItem('authUserA3');
+  sessionStorage.removeItem('authRoleA3');
+  sessionStorage.removeItem('authNameA3');
+}
+
+function isAdmin() {
+  return (sessionStorage.getItem('authRoleA3') || '') === 'ADMIN';
+}
+
+function applyRoleAccessControl() {
+  // Se não estiver autenticado, não precisa ajustar UI
+  if (sessionStorage.getItem('authA3') !== 'true') return;
+
+  // Restrições: usuários (funcionários) não podem ver/criar usuários, nem acessar Infraestrutura e Histórico
+  const admin = isAdmin();
+
+  const pagesToRestrict = ['infraestrutura', 'historico', 'usuarios'];
+
+  pagesToRestrict.forEach(page => {
+    const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+    const section = document.getElementById(`page-${page}`);
+
+    if (!admin) {
+      if (nav) nav.style.display = 'none';
+      if (section) section.style.display = 'none';
+    } else {
+      if (nav) nav.style.display = '';
+      if (section) section.style.display = '';
+    }
+  });
+
+  // Se usuário não-admin estiver numa página restrita (ex: estado anterior), manda pro dashboard
+  if (!admin) {
+    const active = document.querySelector('.page.active');
+    const activeId = active?.id || '';
+    if (activeId === 'page-infraestrutura' || activeId === 'page-historico' || activeId === 'page-usuarios') {
+      navigateTo('dashboard');
+    }
+  }
+}
+
 function handleLogin() {
-  const user = document.getElementById('login-user').value;
+  seedUsersIfNeeded();
+
+  const user = document.getElementById('login-user').value.trim();
   const pass = document.getElementById('login-pass').value;
-  
-  const authorizedUsers = {
-    'a3_admin_2026': 'gestaofinanceira2026',
-    'admin_gestao': 'a3_gestao_2026'
-  };
-  
-  if (authorizedUsers[user] && authorizedUsers[user] === pass) {
-    sessionStorage.setItem('authA3', 'true');
+
+  const users = getUsers();
+  const found = users.find(u => u.username === user && u.password === pass);
+
+  if (found) {
+    setCurrentUser(found);
     document.getElementById('login-error').style.display = 'none';
-    
+
+    addAppLog('info', `Login realizado: ${found.username} (${found.role})`);
+
     // Animate exit
     const loginScreen = document.getElementById('login-screen');
     loginScreen.style.opacity = '0';
     loginScreen.style.transition = '0.5s ease';
-    
+
     setTimeout(() => {
       window.location.reload();
     }, 500);
-    
+
   } else {
     document.getElementById('login-error').style.display = 'block';
+    addAppLog('warn', `Falha de login para usuário: ${user || '(vazio)'}`);
   }
 }
 
 function handleLogout() {
-  sessionStorage.removeItem('authA3');
+  clearCurrentUser();
   window.location.reload();
 }
 
@@ -50,9 +149,10 @@ function updateMobilePageTitle(page) {
     produtos: 'Produtos',
     movimentacoes: 'Movimentações',
     relatorios: 'Relatórios',
-    historico: 'Histórico',
-    infraestrutura: 'Ferramentas do Desenvolvedor'
-    };
+    historico: 'Histórico e Logs',
+    infraestrutura: 'Ferramentas do Desenvolvedor',
+    usuarios: 'Usuários'
+  };
 
   title.textContent = labels[page] || 'Gestão Financeira';
 }
@@ -93,6 +193,18 @@ function navigateTo(page) {
     window.sqlLogsInterval = null;
   }
 
+  try { 
+    const cu = getCurrentUser(); 
+    if (cu.username) addAppLog('info', `Navegação: ${page} por ${cu.username}`); 
+  } catch(e) {}
+
+  const restrictedForUsers = ['infraestrutura', 'historico', 'usuarios'];
+  if (sessionStorage.getItem('authA3') === 'true' && !isAdmin() && restrictedForUsers.includes(page)) {
+    showToast('Acesso restrito para funcionários.', 'error');
+    navigateTo('dashboard');
+    return;
+  }
+
   document.querySelectorAll('.page').forEach(node => node.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(node => node.classList.remove('active'));
 
@@ -112,6 +224,7 @@ function navigateTo(page) {
   if (page === 'movimentacoes') loadMovimentacoes();
   if (page === 'historico') loadHistorico();
   if (page === 'infraestrutura') loadInfraestrutura();
+  if (page === 'usuarios') loadUsuarios();
 }
 
 /**
@@ -1498,6 +1611,109 @@ function renderLogs() {
   `).join('');
 }
 
+function loadUsuarios() {
+  const container = document.getElementById('usuarios-list');
+  if (!container) return;
+
+  if (!isAdmin()) {
+    container.innerHTML = buildEmptyState('Acesso restrito', 'Somente administradores podem visualizar esta área.');
+    return;
+  }
+
+  const users = getUsers();
+
+  container.innerHTML = users.map(u => {
+    const roleLabel = u.role === 'ADMIN' ? 'ADMIN' : 'FUNCIONÁRIO';
+    const safeName = escapeHtml(u.name || '');
+    const safeUser = escapeHtml(u.username || '');
+    return `
+      <div class="user-row">
+        <div class="user-main">
+          <div class="user-username">${safeUser}</div>
+          <div class="user-meta">
+            <span class="badge ${u.role === 'ADMIN' ? 'badge-warning' : 'badge-info'}">${roleLabel}</span>
+            ${safeName ? `<span class="muted">&bull; ${safeName}</span>` : ''}
+          </div>
+        </div>
+        <div class="user-actions">
+          ${u.username === (getCurrentUser().username || '') ? `<span class="muted">logado</span>` : ''}
+          ${u.role === 'ADMIN' ? '' : `<button class="btn btn-ghost btn-sm" onclick="handleDeleteUser('${encodeURIComponent(u.username)}')">Remover</button>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  addAppLog('info', 'Lista de usuários atualizada.');
+}
+
+function handleCreateUser() {
+  if (!isAdmin()) {
+    showToast('Apenas admin pode criar usuários.', 'error');
+    return;
+  }
+
+  const usernameEl = document.getElementById('new-user-username');
+  const passwordEl = document.getElementById('new-user-password');
+  const nameEl = document.getElementById('new-user-name');
+
+  const username = (usernameEl?.value || '').trim();
+  const password = (passwordEl?.value || '');
+  const name = (nameEl?.value || '').trim();
+
+  if (!username || !password) {
+    showToast('Usuário e senha são obrigatórios.', 'error');
+    return;
+  }
+
+  const users = getUsers();
+  if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+    showToast('Já existe um usuário com esse nome.', 'error');
+    return;
+  }
+
+  // Sempre cria como funcionário
+  users.push({ username, password, role: 'USER', name });
+
+  saveUsers(users);
+
+  usernameEl.value = '';
+  passwordEl.value = '';
+  if (nameEl) nameEl.value = '';
+
+  showToast('Usuário criado com sucesso.', 'success');
+  addAppLog('info', `Admin criou usuário: ${username}`);
+
+  loadUsuarios();
+}
+
+function handleDeleteUser(encodedUsername) {
+  if (!isAdmin()) {
+    showToast('Apenas admin pode remover usuários.', 'error');
+    return;
+  }
+
+  const username = decodeURIComponent(encodedUsername || '');
+  const users = getUsers();
+
+  const target = users.find(u => u.username === username);
+  if (!target) {
+    showToast('Usuário não encontrado.', 'error');
+    return;
+  }
+
+  if (target.role === 'ADMIN') {
+    showToast('Não é permitido remover administradores por aqui.', 'error');
+    return;
+  }
+
+  const next = users.filter(u => u.username !== username);
+  saveUsers(next);
+
+  showToast('Usuário removido.', 'success');
+  addAppLog('warn', `Admin removeu usuário: ${username}`);
+  loadUsuarios();
+}
+
 async function loadHistorico() {
   const timeline = document.getElementById('historico-timeline');
   if (!timeline) return;
@@ -1878,6 +2094,8 @@ async function checkSystemHealth() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  seedUsersIfNeeded();
+  applyRoleAccessControl();
   setDefaultDates();
   updateMobilePageTitle('dashboard');
   syncResponsiveLayout();
