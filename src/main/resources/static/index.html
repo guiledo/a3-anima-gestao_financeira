@@ -167,12 +167,11 @@
             <div class="nav-item" data-page="relatorios" onclick="navigateTo('relatorios')">
               Relatórios
             </div>
+            <div class="nav-item" data-page="usuarios" onclick="navigateTo('usuarios')">
+              Usuários
+            </div>
             <div class="nav-item" data-page="historico" onclick="navigateTo('historico')">
               Histórico
-            </div>
-            <div class="nav-item" id="nav-usuarios" data-page="usuarios" onclick="navigateTo('usuarios')"
-              style="display: none;">
-              Usuários
             </div>
             <div class="nav-item" data-page="infraestrutura" onclick="navigateTo('infraestrutura')">
               Ferramentas do Desenvolvedor
@@ -183,7 +182,6 @@
             <div id="status-indicator" onclick="checkSystemHealth()" title="Conectado">
               <div class="status-pulse" id="status-dot"></div>
             </div>
-            <span class="badge badge-neutral" id="current-user-badge" style="display:none;"></span>
             <button class="btn btn-ghost btn-sm" onclick="handleLogout()" title="Sair do Sistema"
               style="font-size: 14px; font-weight: 600; padding: 6px 14px;">Sair</button>
             <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleSidebar()">
@@ -234,7 +232,7 @@
               <h1 class="page-title">Produtos</h1>
               <p class="page-subtitle">Gerencie seu catálogo de produtos</p>
             </div>
-            <button class="btn btn-primary" id="btn-novo-produto" onclick="openProdutoModal()">Novo Produto</button>
+            <button class="btn btn-primary" onclick="openProdutoModal()">Novo Produto</button>
           </div>
 
           <div class="card">
@@ -276,8 +274,7 @@
               <h1 class="page-title">Movimentações Financeiras</h1>
               <p class="page-subtitle">Controle de entradas e saídas.</p>
             </div>
-            <button class="btn btn-primary" id="btn-nova-movimentacao" onclick="openMovimentacaoModal()">Nova
-              Movimentação</button>
+            <button class="btn btn-primary" onclick="openMovimentacaoModal()">Nova Movimentação</button>
           </div>
 
           <div class="card">
@@ -334,6 +331,60 @@
           </div>
         </section>
 
+        <section class="page" id="page-usuarios">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Usuários</h1>
+      <p class="page-subtitle">Cadastro e gerenciamento de funcionários (somente admin)</p>
+    </div>
+    <button class="btn btn-ghost" onclick="loadUsuarios()">Atualizar</button>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Criar novo usuário</div>
+        <div class="card-subtitle">Apenas funcionários (sem acesso a Infraestrutura e Histórico)</div>
+      </div>
+
+      <form class="form" onsubmit="event.preventDefault(); handleCreateUser();">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Usuário</label>
+            <input class="form-input" id="new-user-username" type="text" placeholder="ex: funcionario02" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Senha</label>
+            <input class="form-input" id="new-user-password" type="password" placeholder="••••••••" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Nome (opcional)</label>
+          <input class="form-input" id="new-user-name" type="text" placeholder="Nome do funcionário">
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Criar usuário</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Lista de usuários</div>
+        <div class="card-subtitle">Usuários cadastrados no front (localStorage)</div>
+      </div>
+
+      <div id="usuarios-list" class="user-list">
+        <div class="loading-overlay">
+          <div class="spinner"></div> Carregando usuários...
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
         <section class="page" id="page-historico">
           <div class="page-header">
             <div>
@@ -373,47 +424,6 @@
               <div class="log-console" id="log-console">
                 <div class="log-entry info">Sistema iniciado... Monitorando erros.</div>
               </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="page" id="page-usuarios">
-          <div class="page-header">
-            <div>
-              <h1 class="page-title">Usuários</h1>
-              <p class="page-subtitle">Crie acessos e ajuste permissões do sistema</p>
-            </div>
-            <button class="btn btn-primary" id="btn-novo-usuario" onclick="openUsuarioModal()">Novo Usuário</button>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Usuários do Sistema</span>
-              <span id="usuarios-count" class="badge badge-neutral">0 itens</span>
-            </div>
-            <div class="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Nome</th>
-                    <th>Username</th>
-                    <th>Perfil</th>
-                    <th>Status</th>
-                    <th>Criado em</th>
-                    <th style="text-align:right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody id="usuarios-tbody">
-                  <tr>
-                    <td colspan="7">
-                      <div class="loading-overlay">
-                        <div class="spinner"></div> Carregando...
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
         </section>

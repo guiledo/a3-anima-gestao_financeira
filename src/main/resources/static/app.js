@@ -4,164 +4,135 @@ const MOBILE_BREAKPOINT = 768;
 window.appLogs = [];
 window.currentDashboardData = null;
 window.movTypeFilter = null;
-window.currentUser = null;
-window.currentUsersList = [];
 
-async function handleLogin() {
-  const username = document.getElementById('login-user').value.trim().toLowerCase();
-  const password = document.getElementById('login-pass').value;
-  const errorBox = document.getElementById('login-error');
+const AUTH_STORAGE_KEY = 'a3_users_v1';
 
-  if (!username || !password) {
-    errorBox.textContent = 'Informe usuario e senha.';
-    errorBox.style.display = 'block';
-    return;
-  }
-
+function seedUsersIfNeeded() {
   try {
-    await apiPost('/auth/login', { username, password }, { skipAuthRedirect: true });
-    sessionStorage.setItem('authA3', 'true');
-    errorBox.style.display = 'none';
-    window.dispatchEvent(new Event('authSuccess'));
+    const existing = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (existing) return;
 
+    const seeded = [
+      { username: 'a3_admin_2026', password: 'gestaofinanceira2026', role: 'ADMIN', name: 'Admin A3' },
+      { username: 'admin_gestao', password: 'a3_gestao_2026', role: 'ADMIN', name: 'Admin Gestão' },
+
+      // Usuário de demonstração (funcionário) para você ver a interface logada
+      { username: 'funcionario01', password: '123456', role: 'USER', name: 'Funcionário 01' },
+
+      // Admin simples (opcional)
+      { username: 'admin', password: 'admin123', role: 'ADMIN', name: 'Administrador' }
+    ];
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(seeded));
+  } catch (err) {
+    // Se localStorage estiver bloqueado, apenas segue.
+  }
+}
+
+function getUsers() {
+  seedUsersIfNeeded();
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    const users = raw ? JSON.parse(raw) : [];
+    return Array.isArray(users) ? users : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function saveUsers(users) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(users));
+}
+
+function getCurrentUser() {
+  const username = sessionStorage.getItem('authUserA3') || '';
+  const role = sessionStorage.getItem('authRoleA3') || '';
+  const name = sessionStorage.getItem('authNameA3') || '';
+  return { username, role, name };
+}
+
+function setCurrentUser(user) {
+  sessionStorage.setItem('authA3', 'true');
+  sessionStorage.setItem('authUserA3', user.username);
+  sessionStorage.setItem('authRoleA3', user.role);
+  sessionStorage.setItem('authNameA3', user.name || user.username);
+}
+
+function clearCurrentUser() {
+  sessionStorage.removeItem('authA3');
+  sessionStorage.removeItem('authUserA3');
+  sessionStorage.removeItem('authRoleA3');
+  sessionStorage.removeItem('authNameA3');
+}
+
+function isAdmin() {
+  return (sessionStorage.getItem('authRoleA3') || '') === 'ADMIN';
+}
+
+function applyRoleAccessControl() {
+  // Se não estiver autenticado, não precisa ajustar UI
+  if (sessionStorage.getItem('authA3') !== 'true') return;
+
+  // Restrições: usuários (funcionários) não podem ver/criar usuários, nem acessar Infraestrutura e Histórico
+  const admin = isAdmin();
+
+  const pagesToRestrict = ['infraestrutura', 'historico', 'usuarios'];
+
+  pagesToRestrict.forEach(page => {
+    const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+    const section = document.getElementById(`page-${page}`);
+
+    if (!admin) {
+      if (nav) nav.style.display = 'none';
+      if (section) section.style.display = 'none';
+    } else {
+      if (nav) nav.style.display = '';
+      if (section) section.style.display = '';
+    }
+  });
+
+  // Se usuário não-admin estiver numa página restrita (ex: estado anterior), manda pro dashboard
+  if (!admin) {
+    const active = document.querySelector('.page.active');
+    const activeId = active?.id || '';
+    if (activeId === 'page-infraestrutura' || activeId === 'page-historico' || activeId === 'page-usuarios') {
+      navigateTo('dashboard');
+    }
+  }
+}
+
+function handleLogin() {
+  seedUsersIfNeeded();
+
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+
+  const users = getUsers();
+  const found = users.find(u => u.username === user && u.password === pass);
+
+  if (found) {
+    setCurrentUser(found);
+    document.getElementById('login-error').style.display = 'none';
+
+    addAppLog('info', `Login realizado: ${found.username} (${found.role})`);
+
+    // Animate exit
     const loginScreen = document.getElementById('login-screen');
     loginScreen.style.opacity = '0';
     loginScreen.style.transition = '0.5s ease';
 
     setTimeout(() => {
       window.location.reload();
-    }, 450);
-  } catch (err) {
-    errorBox.textContent = err.message || 'Credenciais invalidas. Verifique os dados de acesso.';
-    errorBox.style.display = 'block';
+    }, 500);
+
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    addAppLog('warn', `Falha de login para usuário: ${user || '(vazio)'}`);
   }
 }
 
-async function handleLogout() {
-  try {
-    await apiRequest('/auth/logout', { method: 'POST' }, { skipAuthRedirect: true });
-  } catch (err) {
-    console.warn('Falha ao encerrar sessao no servidor.', err);
-  }
-
-  clearClientSession();
-  window.location.reload();
-}
-
-function clearClientSession() {
-  sessionStorage.removeItem('authA3');
-  window.currentUser = null;
-  window.currentUsersList = [];
-}
-
-function setAuthVisibility(authenticated) {
-  const loginScreen = document.getElementById('login-screen');
-  const secureApp = document.getElementById('secure-app');
-
-  if (loginScreen) loginScreen.style.display = authenticated ? 'none' : '';
-  if (secureApp) secureApp.style.display = authenticated ? '' : 'none';
-}
-
-function getCurrentPage() {
-  return document.querySelector('.page.active')?.id?.replace('page-', '') || 'dashboard';
-}
-
-function hasRole(...roles) {
-  return roles.includes(window.currentUser?.perfil);
-}
-
-function canManageCadastros() {
-  return hasRole('ADMIN', 'SUPERUSER');
-}
-
-function canAccessInfra() {
-  return hasRole('ADMIN', 'SUPERUSER');
-}
-
-function canManageUsers() {
-  return hasRole('SUPERUSER');
-}
-
-function formatPerfil(perfil) {
-  const labels = {
-    SUPERUSER: 'Superusuario',
-    ADMIN: 'Administrador',
-    USER: 'Leitura'
-  };
-  return labels[perfil] || perfil || '-';
-}
-
-function getPerfilBadgeClass(perfil) {
-  if (perfil === 'SUPERUSER') return 'badge-warning';
-  if (perfil === 'ADMIN') return 'badge-info';
-  return 'badge-neutral';
-}
-
-function formatDateTime(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-
-  return new Intl.DateTimeFormat('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'short'
-  }).format(date);
-}
-
-function setElementVisible(target, visible, displayValue = '') {
-  const element = typeof target === 'string' ? document.getElementById(target) : target;
-  if (!element) return;
-  element.style.display = visible ? displayValue : 'none';
-}
-
-function updateAuthenticatedUi() {
-  const currentUserBadge = document.getElementById('current-user-badge');
-  const navInfra = document.querySelector('.nav-item[data-page="infraestrutura"]');
-
-  if (currentUserBadge && window.currentUser) {
-    currentUserBadge.textContent = `${window.currentUser.nome} - ${formatPerfil(window.currentUser.perfil)}`;
-    currentUserBadge.style.display = 'inline-flex';
-  } else if (currentUserBadge) {
-    currentUserBadge.style.display = 'none';
-  }
-
-  setElementVisible('nav-usuarios', canManageUsers());
-  setElementVisible(navInfra, canAccessInfra());
-  setElementVisible('btn-novo-produto', canManageCadastros());
-  setElementVisible('btn-nova-movimentacao', canManageCadastros());
-  setElementVisible('btn-novo-usuario', canManageUsers());
-
-  if (!canManageUsers() && getCurrentPage() === 'usuarios') {
-    navigateTo('dashboard');
-  }
-
-  if (!canAccessInfra() && getCurrentPage() === 'infraestrutura') {
-    navigateTo('dashboard');
-  }
-}
-
-async function restoreSession() {
-  if (sessionStorage.getItem('authA3') !== 'true') {
-    clearClientSession();
-    setAuthVisibility(false);
-    return false;
-  }
-
-  try {
-    window.currentUser = await apiGet('/auth/me', { skipAuthRedirect: true });
-    sessionStorage.setItem('authA3', 'true');
-    setAuthVisibility(true);
-    updateAuthenticatedUi();
-    return true;
-  } catch (err) {
-    clearClientSession();
-    setAuthVisibility(false);
-    return false;
-  }
-}
-
-function redirectToLogin() {
-  clearClientSession();
+function handleLogout() {
+  clearCurrentUser();
   window.location.reload();
 }
 
@@ -178,9 +149,9 @@ function updateMobilePageTitle(page) {
     produtos: 'Produtos',
     movimentacoes: 'Movimentações',
     relatorios: 'Relatórios',
-    historico: 'Histórico',
-    usuarios: 'Usuários',
-    infraestrutura: 'Ferramentas do Desenvolvedor'
+    historico: 'Histórico e Logs',
+    infraestrutura: 'Ferramentas do Desenvolvedor',
+    usuarios: 'Usuários'
   };
 
   title.textContent = labels[page] || 'Gestão Financeira';
@@ -217,19 +188,21 @@ function syncResponsiveLayout() {
 }
 
 function navigateTo(page) {
-  if (page === 'usuarios' && !canManageUsers()) {
-    showToast('Apenas o superusuario pode gerenciar usuarios.', 'error');
-    page = 'dashboard';
-  }
-
-  if (page === 'infraestrutura' && !canAccessInfra()) {
-    showToast('Seu perfil nao possui acesso a infraestrutura.', 'error');
-    page = 'dashboard';
-  }
-
   if (window.sqlLogsInterval) {
     clearInterval(window.sqlLogsInterval);
     window.sqlLogsInterval = null;
+  }
+
+  try { 
+    const cu = getCurrentUser(); 
+    if (cu.username) addAppLog('info', `Navegação: ${page} por ${cu.username}`); 
+  } catch(e) {}
+
+  const restrictedForUsers = ['infraestrutura', 'historico', 'usuarios'];
+  if (sessionStorage.getItem('authA3') === 'true' && !isAdmin() && restrictedForUsers.includes(page)) {
+    showToast('Acesso restrito para funcionários.', 'error');
+    navigateTo('dashboard');
+    return;
   }
 
   document.querySelectorAll('.page').forEach(node => node.classList.remove('active'));
@@ -250,8 +223,8 @@ function navigateTo(page) {
   if (page === 'produtos') loadProdutos();
   if (page === 'movimentacoes') loadMovimentacoes();
   if (page === 'historico') loadHistorico();
-  if (page === 'usuarios') loadUsuarios();
   if (page === 'infraestrutura') loadInfraestrutura();
+  if (page === 'usuarios') loadUsuarios();
 }
 
 /**
@@ -315,7 +288,7 @@ function closeModal(event) {
   document.getElementById('modal-overlay').classList.remove('active');
 }
 
-async function apiRequest(path, options = {}, config = {}) {
+async function apiRequest(path, options = {}) {
   const response = await fetch(`${API}${path}`, options);
 
   if (!response.ok) {
@@ -327,42 +300,35 @@ async function apiRequest(path, options = {}, config = {}) {
     }
 
     const detail = errorBody?.detail || errorBody?.title || `Erro ${response.status}`;
-    const error = new Error(detail);
-    error.status = response.status;
-
-    if (response.status === 401 && !config.skipAuthRedirect) {
-      redirectToLogin();
-    }
-
-    throw error;
+    throw new Error(detail);
   }
 
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 }
 
-async function apiGet(path, config = {}) {
-  return apiRequest(path, {}, config);
+async function apiGet(path) {
+  return apiRequest(path);
 }
 
-async function apiPost(path, data, config = {}) {
+async function apiPost(path, data) {
   return apiRequest(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
-  }, config);
+  });
 }
 
-async function apiPut(path, data, config = {}) {
+async function apiPut(path, data) {
   return apiRequest(path, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
-  }, config);
+  });
 }
 
-async function apiDelete(path, config = {}) {
-  return apiRequest(path, { method: 'DELETE' }, config);
+async function apiDelete(path) {
+  return apiRequest(path, { method: 'DELETE' });
 }
 
 function formatCurrency(value) {
@@ -802,10 +768,7 @@ async function loadProdutos() {
     document.getElementById('produtos-count').textContent = `${produtos.length} itens`;
 
     if (produtos.length === 0) {
-      const subtitle = canManageCadastros()
-        ? 'Clique em "Novo Produto" para começar'
-        : 'Nenhum item disponível no momento.';
-      tbody.innerHTML = `<tr><td colspan="8">${buildEmptyState('Nenhum produto cadastrado', subtitle, '[]')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8">${buildEmptyState('Nenhum produto cadastrado', 'Clique em "Novo Produto" para começar', '[]')}</td></tr>`;
       return;
     }
 
@@ -821,12 +784,8 @@ async function loadProdutos() {
           ? '<span class="badge badge-success">ATIVO</span>'
           : '<span class="badge badge-danger">INATIVO</span>'}</td>
         <td class="td-actions">
-          ${canManageCadastros()
-            ? `
-              <button class="btn btn-ghost btn-sm" onclick="openProdutoModal(${produto.id})">Editar</button>
-              <button class="btn btn-ghost btn-sm" onclick="deleteProduto(${produto.id})">Excluir</button>
-            `
-            : '<span class="badge badge-neutral">LEITURA</span>'}
+          <button class="btn btn-ghost btn-sm" onclick="openProdutoModal(${produto.id})">Editar</button>
+          <button class="btn btn-ghost btn-sm" onclick="deleteProduto(${produto.id})">Excluir</button>
         </td>
       </tr>
     `).join('');
@@ -837,11 +796,6 @@ async function loadProdutos() {
 }
 
 function openProdutoModal(id) {
-  if (!canManageCadastros()) {
-    showToast('Seu perfil nao pode alterar produtos.', 'error');
-    return;
-  }
-
   const isEdit = Boolean(id);
 
   const body = `
@@ -901,11 +855,6 @@ function openProdutoModal(id) {
 }
 
 async function saveProduto() {
-  if (!canManageCadastros()) {
-    showToast('Seu perfil nao pode alterar produtos.', 'error');
-    return;
-  }
-
   const id = document.getElementById('prod-id').value;
   const data = {
     nome: document.getElementById('prod-nome').value.trim(),
@@ -939,11 +888,6 @@ async function saveProduto() {
 }
 
 async function deleteProduto(id) {
-  if (!canManageCadastros()) {
-    showToast('Seu perfil nao pode alterar produtos.', 'error');
-    return;
-  }
-
   if (!confirm('Tem certeza que deseja excluir este produto?')) return;
 
   try {
@@ -973,12 +917,7 @@ async function loadMovimentacoes() {
     if (countBadge) countBadge.textContent = `${movimentacoes.length} itens`;
 
     if (movimentacoes.length === 0) {
-      const subtitle = window.movTypeFilter
-        ? 'Tente limpar o filtro para ver tudo.'
-        : canManageCadastros()
-          ? 'Clique em "Nova Movimentação" para começar'
-          : 'Nenhuma movimentação disponível no momento.';
-      tbody.innerHTML = buildEmptyState('Nenhuma movimentação encontrada', subtitle, '$');
+      tbody.innerHTML = buildEmptyState('Nenhuma movimentação encontrada', window.movTypeFilter ? 'Tente limpar o filtro para ver tudo.' : 'Clique em "Nova Movimentação" para começar', '$');
       return;
     }
 
@@ -992,7 +931,7 @@ async function loadMovimentacoes() {
 
     let html = '';
     
-    // Se estiver filtrado, adicionar aviso e botao de limpar
+    // Se estiver filtrado, adicionar aviso e botão de limpar
     if (window.movTypeFilter) {
       const label = window.movTypeFilter === 'ENTRADA' ? 'Entradas' : 'Saídas';
       html += `
@@ -1026,12 +965,10 @@ async function loadMovimentacoes() {
             </div>
             <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
               <strong class="${colorClass}" style="font-size: 16px;">${formatCurrency(movimentacao.valor)}</strong>
-              ${canManageCadastros() ? `
-                <div style="display: flex; gap: 4px;">
-                  <button class="btn btn-ghost btn-sm" onclick="openMovimentacaoModal(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px;">Editar</button>
-                  <button class="btn btn-ghost btn-sm" onclick="deleteMovimentacao(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px; color: var(--accent-danger);">Excluir</button>
-                </div>
-              ` : '<span class="badge badge-neutral">LEITURA</span>'}
+              <div style="display: flex; gap: 4px;">
+                <button class="btn btn-ghost btn-sm" onclick="openMovimentacaoModal(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px;">Editar</button>
+                <button class="btn btn-ghost btn-sm" onclick="deleteMovimentacao(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px; color: var(--accent-danger);">Excluir</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1046,11 +983,6 @@ async function loadMovimentacoes() {
 }
 
 function openMovimentacaoModal(id) {
-  if (!canManageCadastros()) {
-    showToast('Seu perfil nao pode alterar movimentacoes.', 'error');
-    return;
-  }
-
   const isEdit = Boolean(id);
   const today = new Date().toISOString().split('T')[0];
 
@@ -1156,11 +1088,6 @@ function syncMovimentacaoPagamentoFields() {
 }
 
 async function saveMovimentacao() {
-  if (!canManageCadastros()) {
-    showToast('Seu perfil nao pode alterar movimentacoes.', 'error');
-    return;
-  }
-
   const id = document.getElementById('mov-id').value;
   const data = {
     tipo: document.getElementById('mov-tipo').value,
@@ -1206,11 +1133,6 @@ async function saveMovimentacao() {
 }
 
 async function deleteMovimentacao(id) {
-  if (!canManageCadastros()) {
-    showToast('Seu perfil nao pode alterar movimentacoes.', 'error');
-    return;
-  }
-
   if (!confirm('Tem certeza que deseja excluir esta movimentação?')) return;
 
   try {
@@ -1220,162 +1142,6 @@ async function deleteMovimentacao(id) {
     loadDashboard();
   } catch (err) {
     showToast(`Erro ao excluir: ${err.message}`, 'error');
-  }
-}
-
-async function loadUsuarios() {
-  const tbody = document.getElementById('usuarios-tbody');
-  if (!tbody) return;
-
-  if (!canManageUsers()) {
-    tbody.innerHTML = `<tr><td colspan="7">${buildEmptyState('Acesso restrito', 'Somente o superusuario pode gerenciar usuarios.', '!')}</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = '<tr><td colspan="7"><div class="loading-overlay"><div class="spinner"></div> Carregando...</div></td></tr>';
-
-  try {
-    const usuarios = await apiGet('/usuarios');
-    window.currentUsersList = usuarios;
-    document.getElementById('usuarios-count').textContent = `${usuarios.length} itens`;
-
-    if (usuarios.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7">${buildEmptyState('Nenhum usuario cadastrado', 'Crie o primeiro usuario para liberar novos acessos.', '[]')}</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = usuarios.map(usuario => `
-      <tr>
-        <td><span class="badge badge-neutral">#${usuario.id}</span></td>
-        <td class="td-name">${escapeHtml(usuario.nome)}</td>
-        <td>${escapeHtml(usuario.username)}</td>
-        <td><span class="badge ${getPerfilBadgeClass(usuario.perfil)}">${escapeHtml(formatPerfil(usuario.perfil))}</span></td>
-        <td>${usuario.ativo
-          ? '<span class="badge badge-success">ATIVO</span>'
-          : '<span class="badge badge-danger">INATIVO</span>'}</td>
-        <td>${formatDateTime(usuario.criadoEm)}</td>
-        <td class="td-actions">
-          <button class="btn btn-ghost btn-sm" onclick="openUsuarioModal(${usuario.id})">Editar</button>
-        </td>
-      </tr>
-    `).join('');
-  } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7">${buildEmptyState('Falha ao carregar usuarios', err.message)}</td></tr>`;
-    showToast(`Erro ao carregar usuarios: ${err.message}`, 'error');
-  }
-}
-
-function openUsuarioModal(id) {
-  if (!canManageUsers()) {
-    showToast('Somente o superusuario pode gerenciar usuarios.', 'error');
-    return;
-  }
-
-  const isEdit = Boolean(id);
-
-  const body = `
-    <input type="hidden" id="user-id" value="${id || ''}">
-    <div class="form-group">
-      <label class="form-label">Nome</label>
-      <input type="text" id="user-nome" class="form-input" placeholder="Ex: Maria Gestora" maxlength="120">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Username</label>
-        <input type="text" id="user-username" class="form-input" placeholder="Ex: maria.gestora" maxlength="60">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Perfil</label>
-        <select id="user-perfil" class="form-select">
-          <option value="USER">Leitura</option>
-          <option value="ADMIN">Administrador</option>
-          <option value="SUPERUSER">Superusuario</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Senha ${isEdit ? '(opcional)' : ''}</label>
-        <input type="password" id="user-password" class="form-input" placeholder="${isEdit ? 'Deixe em branco para manter a atual' : 'Minimo de 8 caracteres'}" maxlength="72">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Ativo</label>
-        <select id="user-ativo" class="form-select">
-          <option value="true">Sim</option>
-          <option value="false">Nao</option>
-        </select>
-      </div>
-    </div>
-  `;
-
-  const footer = `
-    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-    <button class="btn btn-success" onclick="saveUsuario()">${isEdit ? 'Atualizar' : 'Criar'}</button>
-  `;
-
-  openModal(isEdit ? 'Editar Usuario' : 'Novo Usuario', body, footer);
-
-  if (isEdit) {
-    apiGet(`/usuarios/${id}`)
-      .then(usuario => {
-        document.getElementById('user-nome').value = usuario.nome;
-        document.getElementById('user-username').value = usuario.username;
-        document.getElementById('user-perfil').value = usuario.perfil;
-        document.getElementById('user-ativo').value = String(usuario.ativo);
-      })
-      .catch(err => showToast(`Erro ao carregar usuario: ${err.message}`, 'error'));
-  }
-}
-
-async function saveUsuario() {
-  if (!canManageUsers()) {
-    showToast('Somente o superusuario pode gerenciar usuarios.', 'error');
-    return;
-  }
-
-  const id = document.getElementById('user-id').value;
-  const password = document.getElementById('user-password').value.trim();
-  const data = {
-    nome: document.getElementById('user-nome').value.trim(),
-    username: document.getElementById('user-username').value.trim().toLowerCase(),
-    perfil: document.getElementById('user-perfil').value,
-    ativo: document.getElementById('user-ativo').value === 'true',
-    password: password || null
-  };
-
-  if (!data.nome || !data.username) {
-    showToast('Preencha nome e username.', 'error');
-    return;
-  }
-
-  if (!id && !password) {
-    showToast('Informe uma senha para o novo usuario.', 'error');
-    return;
-  }
-
-  if (password && password.length < 8) {
-    showToast('A senha precisa ter pelo menos 8 caracteres.', 'error');
-    return;
-  }
-
-  try {
-    if (id) {
-      await apiPut(`/usuarios/${id}`, data);
-      showToast('Usuario atualizado com sucesso', 'success');
-    } else {
-      await apiPost('/usuarios', { ...data, password });
-      showToast('Usuario criado com sucesso', 'success');
-    }
-
-    if (window.currentUser?.id === Number(id)) {
-      window.currentUser = await apiGet('/auth/me', { skipAuthRedirect: true });
-      updateAuthenticatedUi();
-    }
-
-    closeModal();
-    loadUsuarios();
-  } catch (err) {
-    showToast(`Erro: ${err.message}`, 'error');
   }
 }
 
@@ -1845,6 +1611,109 @@ function renderLogs() {
   `).join('');
 }
 
+function loadUsuarios() {
+  const container = document.getElementById('usuarios-list');
+  if (!container) return;
+
+  if (!isAdmin()) {
+    container.innerHTML = buildEmptyState('Acesso restrito', 'Somente administradores podem visualizar esta área.');
+    return;
+  }
+
+  const users = getUsers();
+
+  container.innerHTML = users.map(u => {
+    const roleLabel = u.role === 'ADMIN' ? 'ADMIN' : 'FUNCIONÁRIO';
+    const safeName = escapeHtml(u.name || '');
+    const safeUser = escapeHtml(u.username || '');
+    return `
+      <div class="user-row">
+        <div class="user-main">
+          <div class="user-username">${safeUser}</div>
+          <div class="user-meta">
+            <span class="badge ${u.role === 'ADMIN' ? 'badge-warning' : 'badge-info'}">${roleLabel}</span>
+            ${safeName ? `<span class="muted">&bull; ${safeName}</span>` : ''}
+          </div>
+        </div>
+        <div class="user-actions">
+          ${u.username === (getCurrentUser().username || '') ? `<span class="muted">logado</span>` : ''}
+          ${u.role === 'ADMIN' ? '' : `<button class="btn btn-ghost btn-sm" onclick="handleDeleteUser('${encodeURIComponent(u.username)}')">Remover</button>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  addAppLog('info', 'Lista de usuários atualizada.');
+}
+
+function handleCreateUser() {
+  if (!isAdmin()) {
+    showToast('Apenas admin pode criar usuários.', 'error');
+    return;
+  }
+
+  const usernameEl = document.getElementById('new-user-username');
+  const passwordEl = document.getElementById('new-user-password');
+  const nameEl = document.getElementById('new-user-name');
+
+  const username = (usernameEl?.value || '').trim();
+  const password = (passwordEl?.value || '');
+  const name = (nameEl?.value || '').trim();
+
+  if (!username || !password) {
+    showToast('Usuário e senha são obrigatórios.', 'error');
+    return;
+  }
+
+  const users = getUsers();
+  if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+    showToast('Já existe um usuário com esse nome.', 'error');
+    return;
+  }
+
+  // Sempre cria como funcionário
+  users.push({ username, password, role: 'USER', name });
+
+  saveUsers(users);
+
+  usernameEl.value = '';
+  passwordEl.value = '';
+  if (nameEl) nameEl.value = '';
+
+  showToast('Usuário criado com sucesso.', 'success');
+  addAppLog('info', `Admin criou usuário: ${username}`);
+
+  loadUsuarios();
+}
+
+function handleDeleteUser(encodedUsername) {
+  if (!isAdmin()) {
+    showToast('Apenas admin pode remover usuários.', 'error');
+    return;
+  }
+
+  const username = decodeURIComponent(encodedUsername || '');
+  const users = getUsers();
+
+  const target = users.find(u => u.username === username);
+  if (!target) {
+    showToast('Usuário não encontrado.', 'error');
+    return;
+  }
+
+  if (target.role === 'ADMIN') {
+    showToast('Não é permitido remover administradores por aqui.', 'error');
+    return;
+  }
+
+  const next = users.filter(u => u.username !== username);
+  saveUsers(next);
+
+  showToast('Usuário removido.', 'success');
+  addAppLog('warn', `Admin removeu usuário: ${username}`);
+  loadUsuarios();
+}
+
 async function loadHistorico() {
   const timeline = document.getElementById('historico-timeline');
   if (!timeline) return;
@@ -1942,102 +1811,6 @@ function renderWarningList(warnings) {
           <p>${escapeHtml(warning)}</p>
         </div>
       `).join('')}
-    </div>
-  `;
-}
-
-function groupInfraItems(items, key) {
-  return items.reduce((acc, item) => {
-    const groupKey = item[key] || 'desconhecido';
-    if (!acc[groupKey]) acc[groupKey] = [];
-    acc[groupKey].push(item);
-    return acc;
-  }, {});
-}
-
-function renderInfraDependencies(dependsOn) {
-  if (!dependsOn || dependsOn.length === 0) {
-    return '<span class="badge badge-neutral">Sem dependencia por chave estrangeira visivel</span>';
-  }
-
-  return dependsOn.map(item => `<span class="badge badge-info">${escapeHtml(item)}</span>`).join(' ');
-}
-
-function renderInfraTableCard(table) {
-  const hierarchy = Array.isArray(table.hierarchy) ? table.hierarchy.join(' > ') : `${table.module} > schema ${table.schema} > ${table.qualifiedName || table.name}`;
-
-  return `
-    <div class="card" style="padding: 16px; border: 1px solid var(--border); background: rgba(255,255,255,0.02);">
-      <div style="display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 8px;">
-        <div>
-          <div style="font-size: 16px; font-weight: 700; color: var(--text-primary);">${escapeHtml(table.qualifiedName || `${table.schema}.${table.name}`)}</div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${escapeHtml(table.description || 'Sem descricao cadastrada.')}</div>
-        </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <span class="badge badge-neutral">${escapeHtml(table.type || 'TABLE')}</span>
-          <span class="badge badge-neutral">${escapeHtml(String(table.columns ?? 0))} colunas</span>
-        </div>
-      </div>
-
-      <div style="display: grid; gap: 8px; font-size: 12px; color: var(--text-secondary);">
-        <div><strong>Hierarquia:</strong> ${escapeHtml(hierarchy)}</div>
-        <div><strong>Fica dentro de:</strong> ${escapeHtml(table.module || '-')} / schema ${escapeHtml(table.schema || '-')}</div>
-        <div><strong>Gerenciado por:</strong> ${escapeHtml(table.managedBy || 'Nao informado')}</div>
-        <div><strong>Schema:</strong> ${escapeHtml(table.schemaDescription || 'Sem descricao do schema.')}</div>
-        <div>
-          <strong>Depende de:</strong>
-          <div style="margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap;">
-            ${renderInfraDependencies(table.dependsOn || [])}
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function renderInfraDatabaseTables(tables) {
-  if (!tables || tables.length === 0) {
-    return buildEmptyState('Nenhuma tabela visivel pela conexao atual.');
-  }
-
-  const modules = groupInfraItems(tables, 'module');
-
-  return `
-    <div style="display: grid; gap: 18px;">
-      ${Object.entries(modules).map(([module, moduleTables]) => {
-        const schemas = groupInfraItems(moduleTables, 'schema');
-        const moduleDescription = moduleTables[0]?.moduleDescription || '';
-
-        return `
-          <section class="card" style="padding: 18px;">
-            <div style="display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 14px;">
-              <div>
-                <div class="card-title">${escapeHtml(module)}</div>
-                <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">${escapeHtml(moduleDescription)}</div>
-              </div>
-              <span class="badge badge-neutral">${moduleTables.length} tabelas</span>
-            </div>
-
-            <div style="display: grid; gap: 14px;">
-              ${Object.entries(schemas).map(([schema, schemaTables]) => `
-                <div style="border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: rgba(255,255,255,0.015);">
-                  <div style="padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap;">
-                    <div>
-                      <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">schema ${escapeHtml(schema)}</div>
-                      <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${escapeHtml(schemaTables[0]?.schemaDescription || '')}</div>
-                    </div>
-                    <span class="badge badge-neutral">${schemaTables.length} objetos</span>
-                  </div>
-
-                  <div style="display: grid; gap: 12px; padding: 14px;">
-                    ${schemaTables.map(renderInfraTableCard).join('')}
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </section>
-        `;
-      }).join('')}
     </div>
   `;
 }
@@ -2170,16 +1943,6 @@ async function loadInfraestrutura() {
           </div>
         </section>
 
-        <section class="card server-panel server-panel-wide">
-          <div class="card-header">
-            <span class="card-title">Tabelas visíveis no Supabase</span>
-            <span class="badge badge-neutral">${(infra.databaseTables || []).length} tabelas</span>
-          </div>
-          <div class="card-body">
-            ${renderInfraDatabaseTables(infra.databaseTables || [])}
-          </div>
-        </section>
-
         <section class="card server-panel">
           <div class="card-header">
             <span class="card-title">Runtime do servidor</span>
@@ -2295,60 +2058,49 @@ function setDefaultDates() {
 }
 
 async function checkSystemHealth() {
-  if (!window.currentUser) return;
-
   const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
   const wrapper = document.getElementById('status-indicator');
 
-  if (!dot || !wrapper) return;
+  if (!dot || !text || !wrapper) return;
 
-  dot.textContent = '';
-  dot.style.background = 'var(--text-primary)';
-  dot.style.boxShadow = '0 0 12px var(--text-primary)';
+  dot.textContent = '...';
+  text.textContent = 'Verificando...';
+  text.style.color = 'var(--text-primary)';
   wrapper.style.background = 'rgba(255,255,255,0.05)';
-  wrapper.title = 'Verificando sistemas';
-  wrapper.setAttribute('aria-label', 'Verificando sistemas');
 
   try {
     const status = await apiGet('/health');
 
     if (status.api === 'ONLINE' && status.database === 'ONLINE') {
-      dot.style.background = 'var(--accent-success)';
-      dot.style.boxShadow = '0 0 12px var(--accent-success)';
+      dot.textContent = 'OK';
+      text.textContent = 'Sistemas online';
+      text.style.color = 'var(--accent-success)';
       wrapper.style.background = 'rgba(16, 185, 129, 0.1)';
-      wrapper.title = 'Sistemas online';
-      wrapper.setAttribute('aria-label', 'Sistemas online');
     } else {
-      dot.style.background = 'var(--accent-warning)';
-      dot.style.boxShadow = '0 0 12px var(--accent-warning)';
+      dot.textContent = 'DB';
+      text.textContent = 'Banco com alerta';
+      text.style.color = 'var(--accent-warning)';
       wrapper.style.background = 'rgba(245, 158, 11, 0.1)';
-      wrapper.title = 'Banco com alerta';
-      wrapper.setAttribute('aria-label', 'Banco com alerta');
       addAppLog('warn', `Problema no banco: ${status.database_error || 'desconhecido'}`);
     }
   } catch (err) {
-    dot.style.background = 'var(--accent-danger)';
-    dot.style.boxShadow = '0 0 12px var(--accent-danger)';
+    dot.textContent = 'API';
+    text.textContent = 'API offline';
+    text.style.color = 'var(--accent-danger)';
     wrapper.style.background = 'rgba(239, 68, 68, 0.1)';
-    wrapper.title = 'API offline';
-    wrapper.setAttribute('aria-label', 'API offline');
     addAppLog('error', 'Sem conexão com o servidor backend.');
   }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
+  seedUsersIfNeeded();
+  applyRoleAccessControl();
   setDefaultDates();
   updateMobilePageTitle('dashboard');
   syncResponsiveLayout();
   renderLogs();
-
-  const authenticated = await restoreSession();
-  if (!authenticated) {
-    return;
-  }
-
-  updateAuthenticatedUi();
-  navigateTo(getCurrentPage());
+  loadDashboard();
   checkSystemHealth();
 });
 
