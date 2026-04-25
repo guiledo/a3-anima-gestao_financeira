@@ -202,11 +202,63 @@ public class InfraestruturaController {
     private Map<String, Object> describeTableCatalog(String schema, String tableName) {
         LinkedHashMap<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("module", moduleForSchema(schema));
+        metadata.put("friendlyName", friendlyTableName(schema, tableName));
+        metadata.put("businessArea", businessAreaForTable(schema, tableName));
+        metadata.put("audience", audienceForSchema(schema));
+        metadata.put("plainPurpose", plainPurposeForTable(schema, tableName));
         metadata.put("moduleDescription", moduleDescriptionForSchema(schema));
         metadata.put("schemaDescription", schemaDescription(schema));
         metadata.put("managedBy", managedBySchema(schema));
         metadata.put("description", tableDescription(schema, tableName));
         return metadata;
+    }
+
+    private String friendlyTableName(String schema, String tableName) {
+        return switch (schema + "." + tableName) {
+            case "public.produtos" -> "Catalogo de produtos";
+            case "public.movimentacoes_financeiras" -> "Vendas, entradas e saidas";
+            case "public.usuarios_sistema" -> "Usuarios e permissoes do aplicativo";
+            case "public.usuarios" -> "Usuarios legados";
+            default -> tableName.replace("_", " ");
+        };
+    }
+
+    private String businessAreaForTable(String schema, String tableName) {
+        if (!"public".equals(schema)) {
+            return moduleForSchema(schema);
+        }
+
+        return switch (tableName) {
+            case "produtos" -> "Estoque e catalogo";
+            case "movimentacoes_financeiras" -> "Operacao comercial";
+            case "usuarios_sistema" -> "Acessos e seguranca";
+            case "usuarios" -> "Legado";
+            default -> "Dados do aplicativo";
+        };
+    }
+
+    private String audienceForSchema(String schema) {
+        return switch (schema) {
+            case "public" -> "Equipe do aplicativo";
+            case "auth", "storage", "realtime", "vault" -> "Supabase";
+            case "extensions" -> "PostgreSQL";
+            default -> "Tecnico";
+        };
+    }
+
+    private String plainPurposeForTable(String schema, String tableName) {
+        return switch (schema + "." + tableName) {
+            case "public.produtos" ->
+                "Guarda os produtos vendidos, seus precos, custos, estoque e status.";
+            case "public.movimentacoes_financeiras" ->
+                "Registra vendas, recebimentos e despesas. Cada vendedor fica vinculado as proprias movimentacoes.";
+            case "public.usuarios_sistema" ->
+                "Controla quem entra no sistema, qual perfil possui e se o acesso esta ativo.";
+            case "public.usuarios" ->
+                "Tabela antiga mantida apenas para referencia enquanto a base principal e usuarios_sistema.";
+            default ->
+                "Tabela detectada automaticamente no Supabase. Se for nova, ela ja aparece aqui para revisao.";
+        };
     }
 
     private String moduleForSchema(String schema) {

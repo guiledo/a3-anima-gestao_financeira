@@ -15,6 +15,8 @@ public interface MovimentacaoFinanceiraRepository extends JpaRepository<Moviment
 
     List<MovimentacaoFinanceira> findAllByOrderByDataDescIdDesc();
 
+    List<MovimentacaoFinanceira> findByVendedorUsernameIgnoreCaseOrderByDataDescIdDesc(String vendedorUsername);
+
     @Query("select coalesce(sum(m.valor), 0) from MovimentacaoFinanceira m where m.tipo = :tipo")
     BigDecimal somarPorTipo(@Param("tipo") TipoMovimentacao tipo);
 

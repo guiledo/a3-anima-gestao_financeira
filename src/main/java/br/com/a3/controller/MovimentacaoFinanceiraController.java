@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,8 +34,9 @@ public class MovimentacaoFinanceiraController {
 
     @PostMapping
     public ResponseEntity<MovimentacaoFinanceiraResponse> criar(
-            @Valid @RequestBody MovimentacaoFinanceiraRequest request) {
-        MovimentacaoFinanceiraResponse response = movimentacaoFinanceiraService.criar(request);
+            @Valid @RequestBody MovimentacaoFinanceiraRequest request,
+            Authentication authentication) {
+        MovimentacaoFinanceiraResponse response = movimentacaoFinanceiraService.criar(request, authentication);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(response.id())
@@ -43,24 +45,25 @@ public class MovimentacaoFinanceiraController {
     }
 
     @GetMapping
-    public List<MovimentacaoFinanceiraResponse> listar() {
-        return movimentacaoFinanceiraService.listar();
+    public List<MovimentacaoFinanceiraResponse> listar(Authentication authentication) {
+        return movimentacaoFinanceiraService.listar(authentication);
     }
 
     @GetMapping("/{id}")
-    public MovimentacaoFinanceiraResponse buscarPorId(@PathVariable Long id) {
-        return movimentacaoFinanceiraService.buscarPorId(id);
+    public MovimentacaoFinanceiraResponse buscarPorId(@PathVariable Long id, Authentication authentication) {
+        return movimentacaoFinanceiraService.buscarPorId(id, authentication);
     }
 
     @PutMapping("/{id}")
     public MovimentacaoFinanceiraResponse atualizar(@PathVariable Long id,
-            @Valid @RequestBody MovimentacaoFinanceiraRequest request) {
-        return movimentacaoFinanceiraService.atualizar(id, request);
+            @Valid @RequestBody MovimentacaoFinanceiraRequest request,
+            Authentication authentication) {
+        return movimentacaoFinanceiraService.atualizar(id, request, authentication);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> excluir(@PathVariable Long id) {
-        movimentacaoFinanceiraService.excluir(id);
+    public ResponseEntity<Void> excluir(@PathVariable Long id, Authentication authentication) {
+        movimentacaoFinanceiraService.excluir(id, authentication);
         return ResponseEntity.noContent().build();
     }
 }

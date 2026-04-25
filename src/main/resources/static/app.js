@@ -9,30 +9,30 @@ const AUTH_STORAGE_KEY = 'a3_users_v1';
 
 function seedUsersIfNeeded() {
   try {
-    const existing = localStorage.getItem(AUTH_STORAGE_KEY);
+    const existing = null;
     if (existing) return;
 
     const seeded = [
-      { username: 'a3_admin_2026', password: 'gestaofinanceira2026', role: 'ADMIN', name: 'Admin A3' },
-      { username: 'admin_gestao', password: 'a3_gestao_2026', role: 'ADMIN', name: 'Admin Gestão' },
+      { username: 'removido', password: 'removido', role: 'USER', name: 'Removido' },
+      { username: 'removido2', password: 'removido', role: 'USER', name: 'Removido' },
 
       // Usuário de demonstração (funcionário) para você ver a interface logada
-      { username: 'funcionario01', password: '123456', role: 'USER', name: 'Funcionário 01' },
+      { username: 'removido3', password: 'removido', role: 'USER', name: 'Removido' },
 
       // Admin simples (opcional)
-      { username: 'admin', password: 'admin123', role: 'ADMIN', name: 'Administrador' }
+      { username: 'removido4', password: 'removido', role: 'USER', name: 'Removido' }
     ];
 
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(seeded));
+    return;
   } catch (err) {
-    // Se localStorage estiver bloqueado, apenas segue.
+    // Compatibilidade com versoes antigas; autenticacao atual usa o backend.
   }
 }
 
 function getUsers() {
   seedUsersIfNeeded();
   try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    const raw = null;
     const users = raw ? JSON.parse(raw) : [];
     return Array.isArray(users) ? users : [];
   } catch (err) {
@@ -41,7 +41,7 @@ function getUsers() {
 }
 
 function saveUsers(users) {
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(users));
+  return users;
 }
 
 function getCurrentUser() {
@@ -205,6 +205,12 @@ function navigateTo(page) {
     return;
   }
 
+  if (isAuthenticated() && !isSuperuser() && page === 'usuarios') {
+    showToast('Apenas superusuario pode gerenciar usuarios.', 'error');
+    navigateTo('dashboard');
+    return;
+  }
+
   document.querySelectorAll('.page').forEach(node => node.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(node => node.classList.remove('active'));
 
@@ -289,7 +295,10 @@ function closeModal(event) {
 }
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API}${path}`, options);
+  const response = await fetch(`${API}${path}`, {
+    credentials: 'same-origin',
+    ...options
+  });
 
   if (!response.ok) {
     let errorBody = null;
@@ -300,6 +309,13 @@ async function apiRequest(path, options = {}) {
     }
 
     const detail = errorBody?.detail || errorBody?.title || `Erro ${response.status}`;
+    if ((response.status === 401 || response.status === 403) && path !== '/auth/login') {
+      clearCurrentUser();
+      const loginScreen = document.getElementById('login-screen');
+      const secureApp = document.getElementById('secure-app');
+      if (loginScreen) loginScreen.style.display = '';
+      if (secureApp) secureApp.style.display = 'none';
+    }
     throw new Error(detail);
   }
 
@@ -772,7 +788,15 @@ async function loadProdutos() {
       return;
     }
 
-    tbody.innerHTML = produtos.map(produto => `
+    tbody.innerHTML = produtos.map(produto => {
+      const actionButtons = canWriteProducts()
+        ? `
+          <button class="btn btn-ghost btn-sm" onclick="openProdutoModal(${produto.id})">Editar</button>
+          <button class="btn btn-ghost btn-sm" onclick="deleteProduto(${produto.id})">Excluir</button>
+        `
+        : '<span class="muted">Catálogo administrado</span>';
+
+      return `
       <tr>
         <td><span class="badge badge-neutral">#${produto.id}</span></td>
         <td class="td-name">${escapeHtml(produto.nome)}</td>
@@ -784,11 +808,11 @@ async function loadProdutos() {
           ? '<span class="badge badge-success">ATIVO</span>'
           : '<span class="badge badge-danger">INATIVO</span>'}</td>
         <td class="td-actions">
-          <button class="btn btn-ghost btn-sm" onclick="openProdutoModal(${produto.id})">Editar</button>
-          <button class="btn btn-ghost btn-sm" onclick="deleteProduto(${produto.id})">Excluir</button>
+          ${actionButtons}
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="8">${buildEmptyState('Falha ao carregar produtos', err.message)}</td></tr>`;
     showToast(`Erro ao carregar produtos: ${err.message}`, 'error');
@@ -796,6 +820,11 @@ async function loadProdutos() {
 }
 
 function openProdutoModal(id) {
+  if (!canWriteProducts()) {
+    showToast('Produtos são administrados por ADMIN ou SUPERUSER.', 'error');
+    return;
+  }
+
   const isEdit = Boolean(id);
 
   const body = `
@@ -855,6 +884,11 @@ function openProdutoModal(id) {
 }
 
 async function saveProduto() {
+  if (!canWriteProducts()) {
+    showToast('Produtos são administrados por ADMIN ou SUPERUSER.', 'error');
+    return;
+  }
+
   const id = document.getElementById('prod-id').value;
   const data = {
     nome: document.getElementById('prod-nome').value.trim(),
@@ -888,6 +922,11 @@ async function saveProduto() {
 }
 
 async function deleteProduto(id) {
+  if (!canWriteProducts()) {
+    showToast('Produtos são administrados por ADMIN ou SUPERUSER.', 'error');
+    return;
+  }
+
   if (!confirm('Tem certeza que deseja excluir este produto?')) return;
 
   try {
@@ -949,6 +988,12 @@ async function loadMovimentacoes() {
       const iconClass = isEntrada ? 'entrada' : 'saida';
       const symbol = isEntrada ? '+' : '-';
       const colorClass = isEntrada ? 'text-success' : 'text-danger';
+      const actionButtons = canWriteMovimentacoes()
+        ? `
+                <button class="btn btn-ghost btn-sm" onclick="openMovimentacaoModal(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px;">Editar</button>
+                <button class="btn btn-ghost btn-sm" onclick="deleteMovimentacao(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px; color: var(--accent-danger);">Excluir</button>
+        `
+        : '<span class="muted">Somente leitura</span>';
 
       return `
         <div class="timeline-item">
@@ -959,6 +1004,7 @@ async function loadMovimentacoes() {
               <div class="timeline-title">${escapeHtml(movimentacao.descricao)}</div>
               <div class="timeline-details">
                 Cliente: <b>${escapeHtml(movimentacao.cliente)}</b> &nbsp;|&nbsp; 
+                Vendedor: <b>${escapeHtml(movimentacao.vendedorNome || movimentacao.vendedorUsername || 'Nao informado')}</b> &nbsp;|&nbsp;
                 ${escapeHtml(formatTipoPagamento(movimentacao.tipoPagamento))} 
                 (${escapeHtml(formatParcelas(movimentacao.quantidadeParcelas, movimentacao.valor))})
               </div>
@@ -966,8 +1012,7 @@ async function loadMovimentacoes() {
             <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
               <strong class="${colorClass}" style="font-size: 16px;">${formatCurrency(movimentacao.valor)}</strong>
               <div style="display: flex; gap: 4px;">
-                <button class="btn btn-ghost btn-sm" onclick="openMovimentacaoModal(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px;">Editar</button>
-                <button class="btn btn-ghost btn-sm" onclick="deleteMovimentacao(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px; color: var(--accent-danger);">Excluir</button>
+                ${actionButtons}
               </div>
             </div>
           </div>
@@ -983,6 +1028,11 @@ async function loadMovimentacoes() {
 }
 
 function openMovimentacaoModal(id) {
+  if (!canWriteMovimentacoes()) {
+    showToast('Seu perfil permite apenas leitura de movimentacoes.', 'error');
+    return;
+  }
+
   const isEdit = Boolean(id);
   const today = new Date().toISOString().split('T')[0];
 
@@ -1088,6 +1138,11 @@ function syncMovimentacaoPagamentoFields() {
 }
 
 async function saveMovimentacao() {
+  if (!canWriteMovimentacoes()) {
+    showToast('Seu perfil permite apenas leitura de movimentacoes.', 'error');
+    return;
+  }
+
   const id = document.getElementById('mov-id').value;
   const data = {
     tipo: document.getElementById('mov-tipo').value,
@@ -1133,6 +1188,11 @@ async function saveMovimentacao() {
 }
 
 async function deleteMovimentacao(id) {
+  if (!canWriteMovimentacoes()) {
+    showToast('Seu perfil permite apenas leitura de movimentacoes.', 'error');
+    return;
+  }
+
   if (!confirm('Tem certeza que deseja excluir esta movimentação?')) return;
 
   try {
@@ -1714,6 +1774,155 @@ function handleDeleteUser(encodedUsername) {
   loadUsuarios();
 }
 
+async function loadUsuarios() {
+  const container = document.getElementById('usuarios-list');
+  if (!container) return;
+
+  if (!isSuperuser()) {
+    container.innerHTML = buildEmptyState('Acesso restrito', 'Somente superusuarios podem visualizar esta area.');
+    return;
+  }
+
+  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando usuarios...</div>';
+
+  try {
+    const users = await apiGet('/usuarios');
+
+    if (!users.length) {
+      container.innerHTML = buildEmptyState('Nenhum usuario cadastrado.');
+      return;
+    }
+
+    container.innerHTML = users.map(u => {
+      const role = u.perfil || 'USER';
+      const currentUser = getCurrentUser();
+      const isLoggedUser = String(u.id) === String(currentUser.id) || u.username === currentUser.username;
+      const safeName = escapeHtml(u.nome || '');
+      const safeUser = escapeHtml(u.username || '');
+      const roleLabel = role === 'SUPERUSER' ? 'SUPERUSER' : role === 'ADMIN' ? 'ADMIN' : 'FUNCIONARIO';
+
+      return `
+        <div class="user-row">
+          <div class="user-main">
+            <div class="user-username">${safeUser}</div>
+            <div class="user-meta">
+              <span class="badge ${role === 'SUPERUSER' ? 'badge-danger' : role === 'ADMIN' ? 'badge-warning' : 'badge-info'}">${roleLabel}</span>
+              <span class="badge ${u.ativo ? 'badge-success' : 'badge-neutral'}">${u.ativo ? 'ATIVO' : 'INATIVO'}</span>
+              ${safeName ? `<span class="muted">&bull; ${safeName}</span>` : ''}
+              ${isLoggedUser ? '<span class="muted">&bull; logado</span>' : ''}
+            </div>
+            <div class="form-row" style="margin-top: 12px;">
+              <div class="form-group">
+                <label class="form-label">Perfil</label>
+                <select class="form-select" id="user-profile-${u.id}">
+                  <option value="USER" ${role === 'USER' ? 'selected' : ''}>Vendedor - proprias vendas</option>
+                  <option value="ADMIN" ${role === 'ADMIN' ? 'selected' : ''}>Administrador - dados</option>
+                  <option value="SUPERUSER" ${role === 'SUPERUSER' ? 'selected' : ''}>Superusuário - usuários</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="user-active-${u.id}" ${isLoggedUser ? 'disabled' : ''}>
+                  <option value="true" ${u.ativo ? 'selected' : ''}>Ativo</option>
+                  <option value="false" ${!u.ativo ? 'selected' : ''}>Inativo</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 8px;">
+              <label class="form-label">Nova senha (opcional)</label>
+              <input class="form-input" id="user-password-${u.id}" type="password" placeholder="Deixe vazio para manter a senha atual">
+            </div>
+          </div>
+          <div class="user-actions">
+            <button class="btn btn-ghost btn-sm" onclick="handleUpdateUser(${u.id})">Salvar</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    addAppLog('info', 'Lista de usuarios atualizada pelo backend.');
+  } catch (err) {
+    container.innerHTML = buildEmptyState('Falha ao carregar usuarios', err.message);
+    showToast(`Erro ao carregar usuarios: ${err.message}`, 'error');
+  }
+}
+
+async function handleCreateUser() {
+  if (!isSuperuser()) {
+    showToast('Apenas superusuario pode criar usuarios.', 'error');
+    return;
+  }
+
+  const usernameEl = document.getElementById('new-user-username');
+  const passwordEl = document.getElementById('new-user-password');
+  const nameEl = document.getElementById('new-user-name');
+  const profileEl = document.getElementById('new-user-profile');
+
+  const payload = {
+    username: (usernameEl?.value || '').trim(),
+    password: passwordEl?.value || '',
+    nome: (nameEl?.value || '').trim() || (usernameEl?.value || '').trim(),
+    perfil: profileEl?.value || 'USER',
+    ativo: true
+  };
+
+  if (!payload.username || !payload.password || !payload.nome) {
+    showToast('Usuario, senha e nome sao obrigatorios.', 'error');
+    return;
+  }
+
+  try {
+    await apiPost('/usuarios', payload);
+
+    usernameEl.value = '';
+    passwordEl.value = '';
+    if (nameEl) nameEl.value = '';
+    if (profileEl) profileEl.value = 'USER';
+
+    showToast('Usuario criado com sucesso.', 'success');
+    addAppLog('info', `Superusuario criou usuario: ${payload.username}`);
+    loadUsuarios();
+  } catch (err) {
+    showToast(`Erro ao criar usuario: ${err.message}`, 'error');
+  }
+}
+
+async function handleUpdateUser(id) {
+  if (!isSuperuser()) {
+    showToast('Apenas superusuario pode alterar usuarios.', 'error');
+    return;
+  }
+
+  try {
+    const current = await apiGet(`/usuarios/${id}`);
+    const password = document.getElementById(`user-password-${id}`)?.value || '';
+    const activeEl = document.getElementById(`user-active-${id}`);
+
+    const payload = {
+      nome: current.nome,
+      username: current.username,
+      perfil: document.getElementById(`user-profile-${id}`)?.value || current.perfil,
+      ativo: activeEl ? activeEl.value === 'true' : current.ativo,
+      password: password.trim() ? password : null
+    };
+
+    await apiPut(`/usuarios/${id}`, payload);
+    showToast('Usuario atualizado com sucesso.', 'success');
+    addAppLog('info', `Superusuario atualizou usuario: ${current.username}`);
+
+    const logged = getCurrentUser();
+    if (current.username === logged.username) {
+      const me = await apiGet('/auth/me');
+      setCurrentUser(me);
+      applyRoleAccessControl();
+    }
+
+    loadUsuarios();
+  } catch (err) {
+    showToast(`Erro ao atualizar usuario: ${err.message}`, 'error');
+  }
+}
+
 async function loadHistorico() {
   const timeline = document.getElementById('historico-timeline');
   if (!timeline) return;
@@ -1813,6 +2022,55 @@ function renderWarningList(warnings) {
       `).join('')}
     </div>
   `;
+}
+
+function renderDatabaseTableMap(tables = []) {
+  if (!tables.length) {
+    return buildEmptyState('Nenhuma tabela retornada pelo banco.', 'Verifique a conexao e as permissoes do usuario do banco.');
+  }
+
+  const grouped = tables.reduce((acc, table) => {
+    const group = table.businessArea || table.module || 'Outras tabelas';
+    acc[group] = acc[group] || [];
+    acc[group].push(table);
+    return acc;
+  }, {});
+
+  return Object.entries(grouped).map(([group, groupTables]) => `
+    <div class="server-warning-item" style="background: rgba(15, 18, 26, 0.55);">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div>
+          <div class="server-endpoint-label">${escapeHtml(group)}</div>
+          <p style="margin:6px 0 0; color: var(--text-muted); font-size: 12px;">
+            ${groupTables.length} estrutura${groupTables.length === 1 ? '' : 's'} encontrada${groupTables.length === 1 ? '' : 's'} automaticamente no Supabase.
+          </p>
+        </div>
+        <span class="badge badge-neutral">${escapeHtml(groupTables[0]?.audience || 'Sistema')}</span>
+      </div>
+
+      <div class="server-endpoint-list" style="margin-top:14px;">
+        ${groupTables.map(table => `
+          <div class="server-endpoint-row">
+            <span class="badge ${table.schema === 'public' ? 'badge-success' : 'badge-info'}">${escapeHtml(table.schema)}</span>
+            <div>
+              <div class="server-endpoint-label">${escapeHtml(table.friendlyName || table.name)}</div>
+              <div class="server-endpoint-path">
+                <code>${escapeHtml(table.qualifiedName || table.name)} · ${escapeHtml(String(table.columns || 0))} campos</code>
+              </div>
+              <p style="margin: 8px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5;">
+                ${escapeHtml(table.plainPurpose || table.description || 'Tabela detectada automaticamente.')}
+              </p>
+              ${(table.dependsOn || []).length ? `
+                <p style="margin: 6px 0 0; color: var(--text-muted); font-size: 11px;">
+                  Relacionada com: ${escapeHtml(table.dependsOn.join(', '))}
+                </p>
+              ` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
 }
 
 async function loadInfraestrutura() {
@@ -1980,6 +2238,20 @@ async function loadInfraestrutura() {
 
         <section class="card server-panel server-panel-wide">
           <div class="card-header">
+            <span class="card-title">Mapa simples das tabelas do Supabase</span>
+          </div>
+          <div class="card-body">
+            <p style="margin: 0 0 14px; color: var(--text-secondary); font-size: 13px;">
+              Esta leitura vem direto do banco. Quando uma tabela nova for criada e a aplicacao tiver permissao para enxerga-la, ela aparece aqui automaticamente.
+            </p>
+            <div class="server-warning-list">
+              ${renderDatabaseTableMap(infra.databaseTables || [])}
+            </div>
+          </div>
+        </section>
+
+        <section class="card server-panel server-panel-wide">
+          <div class="card-header">
             <span class="card-title">Riscos e observações</span>
           </div>
           <div class="card-body">
@@ -2049,6 +2321,166 @@ function startSqlLogsPolling() {
   window.sqlLogsInterval = setInterval(fetchLogs, 2000); // refresh every 2s
 }
 
+function normalizeUser(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    username: user.username || '',
+    role: user.perfil || user.role || '',
+    name: user.nome || user.name || user.username || '',
+    ativo: user.ativo
+  };
+}
+
+function getCurrentUser() {
+  const username = sessionStorage.getItem('authUserA3') || '';
+  const role = sessionStorage.getItem('authRoleA3') || '';
+  const name = sessionStorage.getItem('authNameA3') || '';
+  const id = sessionStorage.getItem('authUserIdA3') || '';
+  return { id, username, role, name };
+}
+
+function setCurrentUser(user) {
+  const normalized = normalizeUser(user);
+  if (!normalized) return;
+
+  sessionStorage.setItem('authA3', 'true');
+  sessionStorage.setItem('authUserIdA3', normalized.id || '');
+  sessionStorage.setItem('authUserA3', normalized.username);
+  sessionStorage.setItem('authRoleA3', normalized.role);
+  sessionStorage.setItem('authNameA3', normalized.name || normalized.username);
+}
+
+function clearCurrentUser() {
+  sessionStorage.removeItem('authA3');
+  sessionStorage.removeItem('authUserIdA3');
+  sessionStorage.removeItem('authUserA3');
+  sessionStorage.removeItem('authRoleA3');
+  sessionStorage.removeItem('authNameA3');
+}
+
+function isAuthenticated() {
+  return sessionStorage.getItem('authA3') === 'true';
+}
+
+function isAdmin() {
+  const role = sessionStorage.getItem('authRoleA3') || '';
+  return role === 'ADMIN' || role === 'SUPERUSER';
+}
+
+function isSuperuser() {
+  return (sessionStorage.getItem('authRoleA3') || '') === 'SUPERUSER';
+}
+
+function canWriteProducts() {
+  return isAdmin();
+}
+
+function canWriteMovimentacoes() {
+  return isAuthenticated();
+}
+
+async function handleLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+
+  try {
+    const authenticatedUser = await apiPost('/auth/login', { username: user, password: pass });
+    setCurrentUser(authenticatedUser);
+    document.getElementById('login-error').style.display = 'none';
+
+    addAppLog('info', `Login realizado: ${authenticatedUser.username} (${authenticatedUser.perfil})`);
+
+    const loginScreen = document.getElementById('login-screen');
+    loginScreen.style.opacity = '0';
+    loginScreen.style.transition = '0.5s ease';
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+  } catch (err) {
+    document.getElementById('login-error').style.display = 'block';
+    addAppLog('warn', `Falha de login para usuario: ${user || '(vazio)'}`);
+  }
+}
+
+async function handleLogout() {
+  try {
+    await apiPost('/auth/logout', {});
+  } catch (err) {
+    // Logout local continua mesmo se a sessao ja tiver expirado no backend.
+  } finally {
+    clearCurrentUser();
+    window.location.reload();
+  }
+}
+
+function applyRoleAccessControl() {
+  if (!isAuthenticated()) return;
+
+  const admin = isAdmin();
+  const superuser = isSuperuser();
+
+  ['infraestrutura', 'historico'].forEach(page => {
+    const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+    const section = document.getElementById(`page-${page}`);
+    if (nav) nav.style.display = admin ? '' : 'none';
+    if (section) section.style.display = admin ? '' : 'none';
+  });
+
+  ['usuarios'].forEach(page => {
+    const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+    const section = document.getElementById(`page-${page}`);
+    if (nav) nav.style.display = superuser ? '' : 'none';
+    if (section) section.style.display = superuser ? '' : 'none';
+  });
+
+  const produtoCreateButton = document.querySelector('#page-produtos .page-header .btn-primary');
+  const movimentacaoCreateButton = document.querySelector('#page-movimentacoes .page-header .btn-primary');
+  if (produtoCreateButton) produtoCreateButton.style.display = canWriteProducts() ? '' : 'none';
+  if (movimentacaoCreateButton) movimentacaoCreateButton.style.display = canWriteMovimentacoes() ? '' : 'none';
+
+  const active = document.querySelector('.page.active');
+  const activeId = active?.id || '';
+  const blockedAdminPage = !admin && (activeId === 'page-infraestrutura' || activeId === 'page-historico');
+  const blockedSuperuserPage = !superuser && activeId === 'page-usuarios';
+  if (blockedAdminPage || blockedSuperuserPage) {
+    navigateTo('dashboard');
+  }
+}
+
+async function syncSessionFromBackend() {
+  try {
+    const user = await apiGet('/auth/me');
+    setCurrentUser(user);
+
+    const loginScreen = document.getElementById('login-screen');
+    const secureApp = document.getElementById('secure-app');
+    if (loginScreen) loginScreen.style.display = 'none';
+    if (secureApp) secureApp.style.display = '';
+
+    return true;
+  } catch (err) {
+    clearCurrentUser();
+    return false;
+  }
+}
+
+async function initializeAuthenticatedApp() {
+  const authenticated = await syncSessionFromBackend();
+  if (!authenticated) {
+    const loginScreen = document.getElementById('login-screen');
+    const secureApp = document.getElementById('secure-app');
+    if (loginScreen) loginScreen.style.display = '';
+    if (secureApp) secureApp.style.display = 'none';
+    return;
+  }
+
+  applyRoleAccessControl();
+  loadDashboard();
+  checkSystemHealth();
+}
+
 function setDefaultDates() {
   const today = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -2094,14 +2526,11 @@ async function checkSystemHealth() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  seedUsersIfNeeded();
-  applyRoleAccessControl();
   setDefaultDates();
   updateMobilePageTitle('dashboard');
   syncResponsiveLayout();
   renderLogs();
-  loadDashboard();
-  checkSystemHealth();
+  initializeAuthenticatedApp();
 });
 
 window.addEventListener('resize', syncResponsiveLayout);

@@ -70,6 +70,7 @@ Este documento descreve as modificacoes realizadas no sistema de gestao financei
 - O superusuario atual esta configurado como:
   - usuario: `a3_admin_2026`
   - senha: `gestaofinanceira2026`
+- **O banco H2 foi completamente removido do projeto, incluindo dependencias e documentacao.**
 
 ## 5. Pendencias
 

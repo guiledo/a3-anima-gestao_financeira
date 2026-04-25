@@ -43,10 +43,13 @@ class ApiIntegrationTest {
     @Autowired
     private MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository;
 
+    private String sessionCookie;
+
     @BeforeEach
-    void limparBase() {
+    void limparBase() throws Exception {
         movimentacaoFinanceiraRepository.deleteAll();
         produtoRepository.deleteAll();
+        sessionCookie = loginAsSuperuser();
     }
 
     @Test
@@ -234,6 +237,7 @@ class ApiIntegrationTest {
 
     private HttpResponse<String> get(String path) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(uri(path))
+                .header(HttpHeaders.COOKIE, sessionCookie)
                 .GET()
                 .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -242,9 +246,31 @@ class ApiIntegrationTest {
     private HttpResponse<String> post(String path, String body) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(uri(path))
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .header(HttpHeaders.COOKIE, sessionCookie)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private String loginAsSuperuser() throws Exception {
+        String requestBody = """
+                {
+                  "username": "a3_admin_2026",
+                  "password": "Kx9#mP2$vL5nQ8wR!jF7hT4yB6cN1zA3"
+                }
+                """;
+
+        HttpRequest request = HttpRequest.newBuilder(uri("/api/v1/auth/login"))
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, response.statusCode());
+        return response.headers()
+                .firstValue(HttpHeaders.SET_COOKIE)
+                .map(cookie -> cookie.split(";", 2)[0])
+                .orElseThrow(() -> new AssertionError("Sessao de autenticacao nao foi criada."));
     }
 
     private URI uri(String path) {

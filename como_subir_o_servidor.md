@@ -63,16 +63,9 @@ A aplicação ficará disponível nos endereços abaixo:
 | Recurso | URL |
 |---|---|
 | **Interface Web (Frontend)** | http://localhost:8080 |
-| **Console do banco H2** | http://localhost:8080/h2-console |
 | **API REST** | http://localhost:8080/api/v1 |
 
-### Dados de acesso ao H2 Console
-
-| Campo | Valor |
-|---|---|
-| JDBC URL | `jdbc:h2:mem:a3db` |
-| User Name | `sa` |
-| Password | *(vazio)* |
+---
 
 ---
 
@@ -98,8 +91,8 @@ Para executar os testes de integração:
 
 ## Observação importante
 
-O banco de dados utilizado é o **H2 em memória**. Isso significa que:
+O banco de dados utilizado é o **PostgreSQL (Supabase)**. Isso significa que:
 
-- Os dados são **perdidos** toda vez que o servidor é reiniciado.
-- Isso é intencional para o ambiente de desenvolvimento/testes desta fase do projeto.
-- Para persistência real, consulte os objetivos futuros no arquivo `requisitos_contemplados_e_objetivos.md`.
+- Os dados são **persistentes** e ficam salvos na nuvem.
+- A conexão é configurada via arquivo `.env`.
+- Para manutenção do banco, utilize o dashboard do Supabase.
