@@ -49,6 +49,12 @@ public class MovimentacaoFinanceira {
     @Column(name = "data_primeiro_vencimento", nullable = false)
     private LocalDate dataPrimeiroVencimento;
 
+    @Column(name = "vendedor_username", length = 60)
+    private String vendedorUsername;
+
+    @Column(name = "vendedor_nome", length = 120)
+    private String vendedorNome;
+
     public Long getId() {
         return id;
     }
@@ -127,5 +133,21 @@ public class MovimentacaoFinanceira {
 
     public void setDataPrimeiroVencimento(LocalDate dataPrimeiroVencimento) {
         this.dataPrimeiroVencimento = dataPrimeiroVencimento;
+    }
+
+    public String getVendedorUsername() {
+        return vendedorUsername;
+    }
+
+    public void setVendedorUsername(String vendedorUsername) {
+        this.vendedorUsername = vendedorUsername;
+    }
+
+    public String getVendedorNome() {
+        return vendedorNome;
+    }
+
+    public void setVendedorNome(String vendedorNome) {
+        this.vendedorNome = vendedorNome;
     }
 }

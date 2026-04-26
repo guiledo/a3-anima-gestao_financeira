@@ -16,5 +16,7 @@ public record MovimentacaoFinanceiraResponse(
         String categoria,
         TipoPagamento tipoPagamento,
         Integer quantidadeParcelas,
-        LocalDate dataPrimeiroVencimento) {
+        LocalDate dataPrimeiroVencimento,
+        String vendedorUsername,
+        String vendedorNome) {
 }

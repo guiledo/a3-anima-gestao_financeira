@@ -335,7 +335,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Usuários</h1>
-      <p class="page-subtitle">Cadastro e gerenciamento de funcionários (somente admin)</p>
+      <p class="page-subtitle">Cadastro e gerenciamento de usuários (somente superusuário)</p>
     </div>
     <button class="btn btn-ghost" onclick="loadUsuarios()">Atualizar</button>
   </div>
@@ -344,7 +344,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title">Criar novo usuário</div>
-        <div class="card-subtitle">Apenas funcionários (sem acesso a Infraestrutura e Histórico)</div>
+        <div class="card-subtitle">Defina o perfil e o nível de acesso de cada usuário</div>
       </div>
 
       <form class="form" onsubmit="event.preventDefault(); handleCreateUser();">
@@ -364,6 +364,15 @@
           <input class="form-input" id="new-user-name" type="text" placeholder="Nome do funcionário">
         </div>
 
+        <div class="form-group">
+          <label class="form-label">Perfil</label>
+          <select class="form-select" id="new-user-profile" required>
+            <option value="USER">Vendedor - gerencia próprias vendas</option>
+            <option value="ADMIN">Administrador - gerencia dados</option>
+            <option value="SUPERUSER">Superusuário - gerencia usuários</option>
+          </select>
+        </div>
+
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">Criar usuário</button>
         </div>
@@ -373,7 +382,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title">Lista de usuários</div>
-        <div class="card-subtitle">Usuários cadastrados no front (localStorage)</div>
+        <div class="card-subtitle">Usuários cadastrados no banco do Supabase</div>
       </div>
 
       <div id="usuarios-list" class="user-list">
