@@ -3,23 +3,29 @@ package br.com.a3.exception;
 import java.net.URI;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 
 import br.com.a3.dto.erro.CampoErroResponse;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)
     public ResponseEntity<ProblemDetail> handleNotFound(RecursoNaoEncontradoException ex,
@@ -77,11 +83,37 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
     }
 
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ProblemDetail> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
+        problemDetail.setTitle("Credenciais invalidas");
+        problemDetail.setDetail("Usuario ou senha incorretos.");
+        problemDetail.setType(URI.create("https://a3.local/problems/credenciais-invalidas"));
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problemDetail);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ProblemDetail> handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(ex.getStatusCode());
+        problemDetail.setTitle(ex.getReason() != null ? ex.getReason() : "Erro no processamento");
+        problemDetail.setDetail(ex.getMessage());
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(ex.getStatusCode()).body(problemDetail);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleUnexpected(Exception ex, HttpServletRequest request) {
+        log.error("Erro inesperado na API: {} em {}", ex.getMessage(), request.getRequestURI(), ex);
+        
+        String technicalDetail = ex.getMessage();
+        if (technicalDetail == null || technicalDetail.isBlank()) {
+            technicalDetail = "Erro tipo: " + ex.getClass().getSimpleName();
+        }
+
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
         problemDetail.setTitle("Erro interno");
-        problemDetail.setDetail("Ocorreu um erro inesperado ao processar a requisicao.");
+        problemDetail.setDetail("Ocorreu um erro inesperado ao processar a requisicao. Detalhe técnico: " + technicalDetail);
         problemDetail.setType(URI.create("https://a3.local/problems/erro-interno"));
         problemDetail.setInstance(URI.create(request.getRequestURI()));
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);

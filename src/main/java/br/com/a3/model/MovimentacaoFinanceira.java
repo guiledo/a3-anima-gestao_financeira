@@ -10,6 +10,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -54,6 +56,21 @@ public class MovimentacaoFinanceira {
 
     @Column(name = "vendedor_nome", length = 120)
     private String vendedorNome;
+
+    @ManyToOne
+    @JoinColumn(name = "usuario_id", nullable = false)
+    private UsuarioSistema usuario;
+
+    @ManyToOne
+    @JoinColumn(name = "produto_id")
+    private Produto produto;
+
+    @Column(nullable = false, columnDefinition = "integer not null default 1")
+    private Integer quantidade = 1;
+
+    @ManyToOne
+    @JoinColumn(name = "cliente_id")
+    private Cliente clienteEntidade;
 
     public Long getId() {
         return id;
@@ -149,5 +166,37 @@ public class MovimentacaoFinanceira {
 
     public void setVendedorNome(String vendedorNome) {
         this.vendedorNome = vendedorNome;
+    }
+
+    public UsuarioSistema getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(UsuarioSistema usuario) {
+        this.usuario = usuario;
+    }
+
+    public Produto getProduto() {
+        return produto;
+    }
+
+    public void setProduto(Produto produto) {
+        this.produto = produto;
+    }
+
+    public Integer getQuantidade() {
+        return quantidade;
+    }
+
+    public void setQuantidade(Integer quantidade) {
+        this.quantidade = quantidade;
+    }
+
+    public Cliente getClienteEntidade() {
+        return clienteEntidade;
+    }
+
+    public void setClienteEntidade(Cliente clienteEntidade) {
+        this.clienteEntidade = clienteEntidade;
     }
 }

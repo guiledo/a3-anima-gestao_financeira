@@ -2,6 +2,8 @@ package br.com.a3.service;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -10,9 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.a3.dto.movimentacao.MovimentacaoFinanceiraRequest;
 import br.com.a3.dto.movimentacao.MovimentacaoFinanceiraResponse;
-import br.com.a3.dto.usuario.UsuarioResponse;
 import br.com.a3.exception.RecursoNaoEncontradoException;
 import br.com.a3.model.MovimentacaoFinanceira;
+import br.com.a3.model.Produto;
+import br.com.a3.model.TipoMovimentacao;
 import br.com.a3.model.TipoPagamento;
 import br.com.a3.repository.MovimentacaoFinanceiraRepository;
 
@@ -20,28 +23,71 @@ import br.com.a3.repository.MovimentacaoFinanceiraRepository;
 @Transactional
 public class MovimentacaoFinanceiraService {
 
+    private static final Logger log = LoggerFactory.getLogger(MovimentacaoFinanceiraService.class);
+
     private final MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository;
     private final UsuarioSistemaService usuarioSistemaService;
+    private final ProdutoService produtoService;
+    private final br.com.a3.repository.ProdutoRepository produtoRepository;
+    private final br.com.a3.repository.ClienteRepository clienteRepository;
 
     public MovimentacaoFinanceiraService(MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository,
-            UsuarioSistemaService usuarioSistemaService) {
+            UsuarioSistemaService usuarioSistemaService,
+            ProdutoService produtoService,
+            br.com.a3.repository.ProdutoRepository produtoRepository,
+            br.com.a3.repository.ClienteRepository clienteRepository) {
         this.movimentacaoFinanceiraRepository = movimentacaoFinanceiraRepository;
         this.usuarioSistemaService = usuarioSistemaService;
+        this.produtoService = produtoService;
+        this.produtoRepository = produtoRepository;
+        this.clienteRepository = clienteRepository;
     }
 
     public MovimentacaoFinanceiraResponse criar(MovimentacaoFinanceiraRequest request, Authentication authentication) {
         MovimentacaoFinanceira movimentacao = new MovimentacaoFinanceira();
+        movimentacao.setUsuario(usuarioSistemaService.getUsuarioLogado());
         aplicarDados(movimentacao, request);
-        aplicarVendedor(movimentacao, authentication);
-        return toResponse(movimentacaoFinanceiraRepository.save(movimentacao));
+        aplicarVendedor(movimentacao);
+        
+        // ============================================================
+        // BAIXA DE ESTOQUE: executada ANTES de salvar a movimentacao
+        // Usa o ProdutoService que e @Transactional e usa save() padrao
+        // ============================================================
+        if (movimentacao.getProduto() != null) {
+            Produto produto = movimentacao.getProduto();
+            int qtd = movimentacao.getQuantidade() != null ? movimentacao.getQuantidade() : 1;
+            int estoqueAtual = produto.getEstoque() != null ? produto.getEstoque() : 0;
+
+            log.info("[ESTOQUE] Produto: '{}' (ID:{}) | Tipo: {} | Qtd: {} | Estoque atual: {}",
+                    produto.getNome(), produto.getId(), movimentacao.getTipo(), qtd, estoqueAtual);
+
+            if (TipoMovimentacao.ENTRADA.equals(movimentacao.getTipo())) {
+                int novoEstoque = estoqueAtual - qtd;
+                produto.setEstoque(novoEstoque);
+                produtoRepository.saveAndFlush(produto);
+                log.info("[ESTOQUE] Deducao aplicada. Novo estoque: {}", novoEstoque);
+            } else if (TipoMovimentacao.SAIDA.equals(movimentacao.getTipo())) {
+                int novoEstoque = estoqueAtual + qtd;
+                produto.setEstoque(novoEstoque);
+                produtoRepository.saveAndFlush(produto);
+                log.info("[ESTOQUE] Incremento aplicado. Novo estoque: {}", novoEstoque);
+            } else {
+                log.warn("[ESTOQUE] Tipo de movimentacao nao reconhecido: {}", movimentacao.getTipo());
+            }
+        } else {
+            log.info("[ESTOQUE] Nenhum produto vinculado. Movimentacao sem impacto no estoque.");
+        }
+
+        // Salva a movimentacao apos garantir o estoque
+        MovimentacaoFinanceira salva = movimentacaoFinanceiraRepository.saveAndFlush(movimentacao);
+        
+        return toResponse(salva);
     }
 
     @Transactional(readOnly = true)
     public List<MovimentacaoFinanceiraResponse> listar(Authentication authentication) {
-        List<MovimentacaoFinanceira> movimentacoes = isGestor(authentication)
-                ? movimentacaoFinanceiraRepository.findAllByOrderByDataDescIdDesc()
-                : movimentacaoFinanceiraRepository.findByVendedorUsernameIgnoreCaseOrderByDataDescIdDesc(
-                        authentication.getName());
+        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
+        List<MovimentacaoFinanceira> movimentacoes = movimentacaoFinanceiraRepository.findAllByUsuarioIdOrderByDataDescIdDesc(usuarioId);
 
         return movimentacoes
                 .stream()
@@ -71,9 +117,15 @@ public class MovimentacaoFinanceiraService {
     }
 
     private MovimentacaoFinanceira buscarEntidade(Long id) {
-        return movimentacaoFinanceiraRepository.findById(id)
+        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
+        MovimentacaoFinanceira movimentacao = movimentacaoFinanceiraRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Movimentacao financeira com id " + id + " nao encontrada"));
+        
+        if (!movimentacao.getUsuario().getId().equals(usuarioId)) {
+             throw new AccessDeniedException("Voce nao tem permissao para acessar esta movimentacao.");
+        }
+        return movimentacao;
     }
 
     private void aplicarDados(MovimentacaoFinanceira movimentacao, MovimentacaoFinanceiraRequest request) {
@@ -87,16 +139,30 @@ public class MovimentacaoFinanceiraService {
         movimentacao.setTipoPagamento(request.tipoPagamento());
         movimentacao.setQuantidadeParcelas(request.quantidadeParcelas());
         movimentacao.setDataPrimeiroVencimento(request.dataPrimeiroVencimento());
-    }
-
-    private void aplicarVendedor(MovimentacaoFinanceira movimentacao, Authentication authentication) {
-        if (authentication == null || authentication.getName() == null) {
-            return;
+        movimentacao.setQuantidade(request.quantidade() != null ? request.quantidade() : 1);
+        
+        if (request.produtoId() != null) {
+            Produto produto = produtoRepository.findById(request.produtoId())
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Produto com ID " + request.produtoId() + " não encontrado no banco."));
+            movimentacao.setProduto(produto);
+        } else {
+            movimentacao.setProduto(null);
         }
 
-        UsuarioResponse usuario = usuarioSistemaService.buscarPorUsername(authentication.getName());
-        movimentacao.setVendedorUsername(usuario.username());
-        movimentacao.setVendedorNome(usuario.nome());
+        if (request.clienteId() != null) {
+            movimentacao.setClienteEntidade(clienteRepository.findById(request.clienteId()).orElse(null));
+            if (movimentacao.getClienteEntidade() != null) {
+                movimentacao.setCliente(movimentacao.getClienteEntidade().getNome());
+            }
+        } else {
+            movimentacao.setClienteEntidade(null);
+        }
+    }
+
+    private void aplicarVendedor(MovimentacaoFinanceira movimentacao) {
+        br.com.a3.model.UsuarioSistema usuario = usuarioSistemaService.getUsuarioLogado();
+        movimentacao.setVendedorUsername(usuario.getUsername());
+        movimentacao.setVendedorNome(usuario.getNome());
     }
 
     private void validarAcessoProprioOuGestor(MovimentacaoFinanceira movimentacao, Authentication authentication) {
@@ -145,6 +211,10 @@ public class MovimentacaoFinanceiraService {
                 movimentacao.getQuantidadeParcelas(),
                 movimentacao.getDataPrimeiroVencimento(),
                 movimentacao.getVendedorUsername(),
-                movimentacao.getVendedorNome());
+                movimentacao.getVendedorNome(),
+                movimentacao.getProduto() != null ? movimentacao.getProduto().getId() : null,
+                movimentacao.getProduto() != null ? movimentacao.getProduto().getNome() : null,
+                movimentacao.getQuantidade(),
+                movimentacao.getClienteEntidade() != null ? movimentacao.getClienteEntidade().getId() : null);
     }
 }

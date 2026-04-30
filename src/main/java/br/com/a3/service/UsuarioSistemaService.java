@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import br.com.a3.dto.usuario.SenhaAlteracaoRequest;
 import br.com.a3.dto.usuario.UsuarioAtualizacaoRequest;
 import br.com.a3.dto.usuario.UsuarioRequest;
 import br.com.a3.dto.usuario.UsuarioResponse;
@@ -50,6 +51,12 @@ public class UsuarioSistemaService implements UserDetailsService {
         return toResponse(buscarPorUsernameEntidade(username));
     }
 
+    @Transactional(readOnly = true)
+    public UsuarioSistema getUsuarioLogado() {
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        return buscarPorUsernameEntidade(username);
+    }
+
     public UsuarioResponse criar(UsuarioRequest request) {
         validarUsernameDisponivel(null, request.username());
 
@@ -61,6 +68,17 @@ public class UsuarioSistemaService implements UserDetailsService {
         usuario.setAtivo(request.ativo());
 
         return toResponse(usuarioSistemaRepository.save(usuario));
+    }
+
+    public void alterarSenha(SenhaAlteracaoRequest request) {
+        UsuarioSistema usuario = getUsuarioLogado();
+
+        if (!passwordEncoder.matches(request.senhaAtual(), usuario.getSenhaHash())) {
+            throw new IllegalArgumentException("Senha atual incorreta.");
+        }
+
+        usuario.setSenhaHash(passwordEncoder.encode(request.novaSenha()));
+        usuarioSistemaRepository.save(usuario);
     }
 
     public UsuarioResponse atualizar(Long id, UsuarioAtualizacaoRequest request) {

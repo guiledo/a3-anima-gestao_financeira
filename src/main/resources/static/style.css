@@ -438,6 +438,9 @@ body.sidebar-open .top-menu {
   transition: border-color var(--transition);
 }
 .card:hover { border-color: var(--border-hover); }
+.card-collapsible.collapsed .card-body { display: none; }
+.collapse-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; transition: transform 0.3s ease; font-size: 12px; }
+.collapsed .collapse-btn { transform: rotate(-90deg); }
 
 .card-header {
   padding: 18px 22px;

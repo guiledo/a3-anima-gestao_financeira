@@ -19,7 +19,7 @@ import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import jakarta.servlet.http.HttpServletResponse;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Configuration
 @EnableWebSecurity
@@ -54,26 +54,24 @@ public class SecurityConfig {
                                 "/style.css",
                                 "/app.js",
                                 "/logo.png",
-                                "/error")
+                                "/error",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/health").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/usuarios/me/senha").authenticated()
                         .requestMatchers("/api/v1/usuarios/**").hasRole("SUPERUSER")
                         .requestMatchers("/api/v1/infra/**").hasAnyRole("ADMIN", "SUPERUSER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/**", "/api/v1/relatorios/**",
-                                "/api/v1/produtos/**", "/api/v1/movimentacoes/**")
+                                "/api/v1/produtos/**", "/api/v1/movimentacoes/**", "/api/v1/clientes/**")
                         .hasAnyRole("USER", "ADMIN", "SUPERUSER")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/produtos/**")
-                        .hasAnyRole("ADMIN", "SUPERUSER")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/produtos/**")
-                        .hasAnyRole("ADMIN", "SUPERUSER")
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/produtos/**")
-                        .hasAnyRole("ADMIN", "SUPERUSER")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/movimentacoes/**")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/produtos/**", "/api/v1/movimentacoes/**", "/api/v1/clientes/**")
                         .hasAnyRole("USER", "ADMIN", "SUPERUSER")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/movimentacoes/**")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/produtos/**", "/api/v1/movimentacoes/**", "/api/v1/clientes/**")
                         .hasAnyRole("USER", "ADMIN", "SUPERUSER")
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/movimentacoes/**")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/produtos/**", "/api/v1/movimentacoes/**", "/api/v1/clientes/**")
                         .hasAnyRole("USER", "ADMIN", "SUPERUSER")
                         .anyRequest()
                         .authenticated())

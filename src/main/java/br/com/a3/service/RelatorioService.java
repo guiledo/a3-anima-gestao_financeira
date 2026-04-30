@@ -36,20 +36,24 @@ public class RelatorioService {
 
     private final MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository;
     private final ProdutoService produtoService;
+    private final UsuarioSistemaService usuarioSistemaService;
 
     public RelatorioService(MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository,
-            ProdutoService produtoService) {
+            ProdutoService produtoService,
+            UsuarioSistemaService usuarioSistemaService) {
         this.movimentacaoFinanceiraRepository = movimentacaoFinanceiraRepository;
         this.produtoService = produtoService;
+        this.usuarioSistemaService = usuarioSistemaService;
     }
 
     public RelatorioFinanceiroResponse gerarRelatorioFinanceiro(LocalDate inicio, LocalDate fim) {
+        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
         BigDecimal totalEntradas = movimentacaoFinanceiraRepository
-                .somarPorTipoEPeriodo(TipoMovimentacao.ENTRADA, inicio, fim);
+                .somarPorTipoEPeriodo(usuarioId, TipoMovimentacao.ENTRADA, inicio, fim);
         BigDecimal totalSaidas = movimentacaoFinanceiraRepository
-                .somarPorTipoEPeriodo(TipoMovimentacao.SAIDA, inicio, fim);
+                .somarPorTipoEPeriodo(usuarioId, TipoMovimentacao.SAIDA, inicio, fim);
         BigDecimal saldoPeriodo = totalEntradas.subtract(totalSaidas);
-        long quantidadeMovimentacoes = movimentacaoFinanceiraRepository.contarPorPeriodo(inicio, fim);
+        long quantidadeMovimentacoes = movimentacaoFinanceiraRepository.contarPorPeriodo(usuarioId, inicio, fim);
 
         long diasNoPeriodo = ChronoUnit.DAYS.between(inicio, fim) + 1;
 
@@ -57,9 +61,9 @@ public class RelatorioService {
         BigDecimal mediaDiariaSaidas = calcularMediaDiaria(totalSaidas, diasNoPeriodo);
 
         List<MovimentacaoPorCategoriaResponse> entradasPorCategoria = agruparPorCategoria(
-                movimentacaoFinanceiraRepository.findByDataBetweenAndTipo(inicio, fim, TipoMovimentacao.ENTRADA));
+                movimentacaoFinanceiraRepository.findByUsuarioIdAndDataBetweenAndTipo(usuarioId, inicio, fim, TipoMovimentacao.ENTRADA));
         List<MovimentacaoPorCategoriaResponse> saidasPorCategoria = agruparPorCategoria(
-                movimentacaoFinanceiraRepository.findByDataBetweenAndTipo(inicio, fim, TipoMovimentacao.SAIDA));
+                movimentacaoFinanceiraRepository.findByUsuarioIdAndDataBetweenAndTipo(usuarioId, inicio, fim, TipoMovimentacao.SAIDA));
         List<FechamentoClienteResponse> fechamentoPorCliente = gerarFechamentoPorCliente(inicio, fim);
         BigDecimal totalDevidoPorClientesNoPeriodo = fechamentoPorCliente.stream()
                 .map(FechamentoClienteResponse::valorDevidoNoPeriodo)
@@ -139,8 +143,9 @@ public class RelatorioService {
     }
 
     private List<FechamentoClienteResponse> gerarFechamentoPorCliente(LocalDate inicio, LocalDate fim) {
+        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
         Map<String, List<MovimentacaoFinanceira>> porCliente = movimentacaoFinanceiraRepository
-                .findByTipoOrderByClienteAscDataPrimeiroVencimentoAscIdAsc(TipoMovimentacao.ENTRADA)
+                .findByUsuarioIdAndTipoOrderByClienteAscDataPrimeiroVencimentoAscIdAsc(usuarioId, TipoMovimentacao.ENTRADA)
                 .stream()
                 .collect(Collectors.groupingBy(MovimentacaoFinanceira::getCliente));
 

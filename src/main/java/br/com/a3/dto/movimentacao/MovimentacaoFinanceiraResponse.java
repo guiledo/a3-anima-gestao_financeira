@@ -18,5 +18,9 @@ public record MovimentacaoFinanceiraResponse(
         Integer quantidadeParcelas,
         LocalDate dataPrimeiroVencimento,
         String vendedorUsername,
-        String vendedorNome) {
+        String vendedorNome,
+        Long produtoId,
+        String produtoNome,
+        Integer quantidade,
+        Long clienteId) {
 }

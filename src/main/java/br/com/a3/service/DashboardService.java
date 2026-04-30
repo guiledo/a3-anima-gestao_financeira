@@ -17,18 +17,22 @@ public class DashboardService {
 
     private final ProdutoService produtoService;
     private final MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository;
+    private final UsuarioSistemaService usuarioSistemaService;
 
     public DashboardService(ProdutoService produtoService,
-            MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository) {
+            MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository,
+            UsuarioSistemaService usuarioSistemaService) {
         this.produtoService = produtoService;
         this.movimentacaoFinanceiraRepository = movimentacaoFinanceiraRepository;
+        this.usuarioSistemaService = usuarioSistemaService;
     }
 
     public ResumoDashboardResponse gerarResumo() {
+        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
         BigDecimal totalEntradas = valorOuZero(
-                movimentacaoFinanceiraRepository.somarPorTipo(TipoMovimentacao.ENTRADA));
+                movimentacaoFinanceiraRepository.somarPorTipo(usuarioId, TipoMovimentacao.ENTRADA));
         BigDecimal totalSaidas = valorOuZero(
-                movimentacaoFinanceiraRepository.somarPorTipo(TipoMovimentacao.SAIDA));
+                movimentacaoFinanceiraRepository.somarPorTipo(usuarioId, TipoMovimentacao.SAIDA));
 
         List<Produto> produtosAtivos = produtoService.listarProdutosAtivos();
 
@@ -47,7 +51,7 @@ public class DashboardService {
                 produtosAtivos.size(),
                 totalItensEmEstoque,
                 valorTotalEstoque,
-                movimentacaoFinanceiraRepository.count());
+                movimentacaoFinanceiraRepository.countByUsuarioId(usuarioId));
     }
 
     private BigDecimal valorOuZero(BigDecimal valor) {

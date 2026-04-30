@@ -5,10 +5,199 @@ window.appLogs = [];
 window.currentDashboardData = null;
 window.movTypeFilter = null;
 
+const AUTH_STORAGE_KEY = 'a3_users_v1';
 
+function seedUsersIfNeeded() {
+  try {
+    const existing = null;
+    if (existing) return;
 
+    const seeded = [
+      { username: 'removido', password: 'removido', role: 'USER', name: 'Removido' },
+      { username: 'removido2', password: 'removido', role: 'USER', name: 'Removido' },
 
+      // Usuário de demonstração (funcionário) para você ver a interface logada
+      { username: 'removido3', password: 'removido', role: 'USER', name: 'Removido' },
 
+      // Admin simples (opcional)
+      { username: 'removido4', password: 'removido', role: 'USER', name: 'Removido' }
+    ];
+
+    return;
+  } catch (err) {
+    // Compatibilidade com versoes antigas; autenticacao atual usa o backend.
+  }
+}
+
+function getUsers() {
+  seedUsersIfNeeded();
+  try {
+    const raw = null;
+    const users = raw ? JSON.parse(raw) : [];
+    return Array.isArray(users) ? users : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function saveUsers(users) {
+  return users;
+}
+
+function getCurrentUser() {
+  const username = sessionStorage.getItem('authUserA3') || '';
+  const role = sessionStorage.getItem('authRoleA3') || '';
+  const name = sessionStorage.getItem('authNameA3') || '';
+  return { username, role, name };
+}
+
+function setCurrentUser(user) {
+  sessionStorage.setItem('authA3', 'true');
+  sessionStorage.setItem('authUserA3', user.username);
+  sessionStorage.setItem('authRoleA3', user.role);
+  sessionStorage.setItem('authNameA3', user.name || user.username);
+}
+
+function clearCurrentUser() {
+  sessionStorage.removeItem('authA3');
+  sessionStorage.removeItem('authUserA3');
+  sessionStorage.removeItem('authRoleA3');
+  sessionStorage.removeItem('authNameA3');
+}
+
+function isAdmin() {
+  return (sessionStorage.getItem('authRoleA3') || '') === 'ADMIN';
+}
+
+function applyRoleAccessControl() {
+  // Se não estiver autenticado, não precisa ajustar UI
+  if (sessionStorage.getItem('authA3') !== 'true') return;
+
+  // Restrições: usuários (funcionários) não podem ver/criar usuários nem acessar Infraestrutura
+  // Histórico é liberado para todos — cada usuário já vê apenas o seu próprio
+  const admin = isAdmin();
+
+  const pagesToRestrict = ['infraestrutura', 'usuarios'];
+
+  pagesToRestrict.forEach(page => {
+    const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+    const section = document.getElementById(`page-${page}`);
+
+    if (!admin) {
+      if (nav) nav.style.display = 'none';
+      if (section) section.style.display = 'none';
+    } else {
+      if (nav) nav.style.display = '';
+      if (section) section.style.display = '';
+    }
+  });
+
+  // Se usuário não-admin estiver numa página restrita (ex: estado anterior), manda pro dashboard
+  if (!admin) {
+    const active = document.querySelector('.page.active');
+    const activeId = active?.id || '';
+    if (activeId === 'page-infraestrutura' || activeId === 'page-usuarios') {
+      navigateTo('dashboard');
+    }
+  }
+}
+
+function handleLogin() {
+  seedUsersIfNeeded();
+
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+
+  const users = getUsers();
+  const found = users.find(u => u.username === user && u.password === pass);
+
+  if (found) {
+    setCurrentUser(found);
+    document.getElementById('login-error').style.display = 'none';
+
+    addAppLog('info', `Login realizado: ${found.username} (${found.role})`);
+
+    // Animate exit
+    const loginScreen = document.getElementById('login-screen');
+    loginScreen.style.opacity = '0';
+    loginScreen.style.transition = '0.5s ease';
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    addAppLog('warn', `Falha de login para usuário: ${user || '(vazio)'}`);
+  }
+}
+
+function handleLogout() {
+  clearCurrentUser();
+  window.location.reload();
+}
+
+function openChangePasswordModal() {
+  const content = `
+    <form id="change-password-form" onsubmit="handleChangePassword(event)">
+      <div class="form-group">
+        <label class="form-label">Senha Atual</label>
+        <input type="password" id="senha-atual" class="form-input" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nova Senha</label>
+        <input type="password" id="nova-senha" class="form-input" minlength="8" required>
+        <small style="color: var(--text-muted); font-size: 11px; margin-top: 4px; display: block;">Mínimo de 8 caracteres.</small>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar Nova Senha</label>
+        <input type="password" id="confirmar-nova-senha" class="form-input" minlength="8" required>
+      </div>
+    </form>
+  `;
+  const footer = `
+    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="document.getElementById('change-password-form').requestSubmit()">Salvar Senha</button>
+  `;
+  showModal('Trocar Minha Senha', content, footer);
+}
+
+async function handleChangePassword(event) {
+  event.preventDefault();
+  const senhaAtual = document.getElementById('senha-atual').value;
+  const novaSenha = document.getElementById('nova-senha').value;
+  const confirmarSenha = document.getElementById('confirmar-nova-senha').value;
+
+  if (novaSenha !== confirmarSenha) {
+    showToast('A nova senha e a confirmação não coincidem.', 'error');
+    return;
+  }
+
+  const payload = {
+    senhaAtual: senhaAtual,
+    novaSenha: novaSenha
+  };
+
+  try {
+    const btn = document.querySelector('#modal-footer .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+    
+    // A API retorna NO_CONTENT (204) então o apiPut já lida com isso.
+    await apiPut('/usuarios/me/senha', payload);
+    
+    showToast('Senha alterada com sucesso! Você será desconectado.', 'success');
+    closeModal();
+    
+    // Força o logout para obrigar o uso da nova senha
+    setTimeout(() => {
+      handleLogout();
+    }, 2000);
+  } catch (err) {
+    const btn = document.querySelector('#modal-footer .btn-primary');
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar Senha'; }
+    showToast(err.message || 'Erro ao alterar a senha.', 'error');
+  }
+}
 
 function isMobileView() {
   return window.innerWidth <= MOBILE_BREAKPOINT;
@@ -24,7 +213,7 @@ function updateMobilePageTitle(page) {
     movimentacoes: 'Movimentações',
     relatorios: 'Relatórios',
     historico: 'Histórico e Logs',
-    infraestrutura: 'Gestão de Infra',
+    infraestrutura: 'Ferramentas do Desenvolvedor',
     usuarios: 'Usuários'
   };
 
@@ -2441,12 +2630,8 @@ async function handleLogin() {
       window.location.reload();
     }, 500);
   } catch (err) {
-    const errorEl = document.getElementById('login-error');
-    if (errorEl) {
-      errorEl.textContent = err.message || 'Credenciais inválidas ou erro no servidor.';
-      errorEl.style.display = 'block';
-    }
-    addAppLog('warn', `Falha de login para usuario: ${user || '(vazio)'} - Erro: ${err.message}`);
+    document.getElementById('login-error').style.display = 'block';
+    addAppLog('warn', `Falha de login para usuario: ${user || '(vazio)'}`);
   }
 }
 
@@ -2723,73 +2908,9 @@ window.addEventListener('resize', syncResponsiveLayout);
 
 setInterval(checkSystemHealth, 30000);
 
-
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     closeModal();
     closeSidebar();
   }
 });
-
-// --- SEGURANÇA: TROCA DE SENHA SELF-SERVICE ---
-function openChangePasswordModal() {
-  const content = `
-    <form id="change-password-form" onsubmit="handleChangePassword(event)">
-      <div class="form-group">
-        <label class="form-label">Senha Atual</label>
-        <input type="password" id="senha-atual" class="form-input" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Nova Senha</label>
-        <input type="password" id="nova-senha" class="form-input" minlength="8" required>
-        <small style="color: var(--text-muted); font-size: 11px; margin-top: 4px; display: block;">Mínimo de 8 caracteres.</small>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Confirmar Nova Senha</label>
-        <input type="password" id="confirmar-nova-senha" class="form-input" minlength="8" required>
-      </div>
-    </form>
-  `;
-  const footer = `
-    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-    <button class="btn btn-primary" onclick="document.getElementById('change-password-form').requestSubmit()">Salvar Senha</button>
-  `;
-  openModal('Trocar Minha Senha', content, footer);
-}
-
-async function handleChangePassword(event) {
-  event.preventDefault();
-  const senhaAtual = document.getElementById('senha-atual').value;
-  const novaSenha = document.getElementById('nova-senha').value;
-  const confirmarSenha = document.getElementById('confirmar-nova-senha').value;
-
-  if (novaSenha !== confirmarSenha) {
-    showToast('A nova senha e a confirmação não coincidem.', 'error');
-    return;
-  }
-
-  const payload = {
-    senhaAtual: senhaAtual,
-    novaSenha: novaSenha
-  };
-
-  try {
-    const btn = document.querySelector('#modal-footer .btn-primary');
-    if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
-    
-    // A API retorna NO_CONTENT (204) então o apiPut já lida com isso.
-    await apiPut('/usuarios/me/senha', payload);
-    
-    showToast('Senha alterada com sucesso! Você será desconectado.', 'success');
-    closeModal();
-    
-    // Força o logout para obrigar o uso da nova senha
-    setTimeout(() => {
-      handleLogout();
-    }, 2000);
-  } catch (err) {
-    const btn = document.querySelector('#modal-footer .btn-primary');
-    if (btn) { btn.disabled = false; btn.textContent = 'Salvar Senha'; }
-    showToast(err.message || 'Erro ao alterar a senha.', 'error');
-  }
-}
