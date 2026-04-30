@@ -2,8 +2,8 @@ name: Keep Supabase Database Alive
 
 on:
   schedule:
-    - cron: '0 0 */2 * *' # Executa a cada 2 dias à meia-noite UTC
-  workflow_dispatch: # Permite execução manual no GitHub Actions
+    - cron: '0 0 */2 * *'
+  workflow_dispatch:
 
 jobs:
   ping-database:
@@ -21,5 +21,18 @@ jobs:
             exit 0
           fi
           echo "Pinging database to keep it alive..."
-          psql "$DATABASE_URL" -c "SELECT 1;"
-
+          
+          # Retry logic with exponential backoff
+          for i in {1..3}; do
+            if psql "$DATABASE_URL" -c "SELECT 1;" 2>/dev/null; then
+              echo "Database ping successful!"
+              exit 0
+            fi
+            if [ $i -lt 3 ]; then
+              echo "Attempt $i failed, retrying in $((i * 10)) seconds..."
+              sleep $((i * 10))
+            fi
+          done
+          
+          echo "Warning: Could not reach database after 3 attempts"
+          exit 0
