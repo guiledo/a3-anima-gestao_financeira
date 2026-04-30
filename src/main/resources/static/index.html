@@ -161,6 +161,9 @@
             <div class="nav-item" data-page="produtos" onclick="navigateTo('produtos')">
               Produtos
             </div>
+            <div class="nav-item" data-page="clientes" onclick="navigateTo('clientes')">
+              Clientes
+            </div>
             <div class="nav-item" data-page="movimentacoes" onclick="navigateTo('movimentacoes')">
               Movimentações
             </div>
@@ -182,6 +185,8 @@
             <div id="status-indicator" onclick="checkSystemHealth()" title="Conectado">
               <div class="status-pulse" id="status-dot"></div>
             </div>
+            <button class="btn btn-ghost btn-sm" onclick="openChangePasswordModal()" title="Trocar Minha Senha"
+              style="font-size: 14px; font-weight: 600; padding: 6px 14px; margin-right: 4px;">Trocar Senha</button>
             <button class="btn btn-ghost btn-sm" onclick="handleLogout()" title="Sair do Sistema"
               style="font-size: 14px; font-weight: 600; padding: 6px 14px;">Sair</button>
             <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleSidebar()">
@@ -292,6 +297,39 @@
           </div>
         </section>
 
+        <section class="page" id="page-clientes">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Clientes</h1>
+              <p class="page-subtitle">Gestão de clientes e CRM</p>
+            </div>
+            <button class="btn btn-primary" onclick="openClienteModal()">Novo Cliente</button>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Base de Clientes</span>
+              <span id="clientes-count" class="badge badge-neutral">0 cadastros</span>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>CPF</th>
+                    <th>E-mail</th>
+                    <th>Telefone</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="clientes-table-body">
+                  <!-- JS Render -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <section class="page" id="page-relatorios">
           <div class="page-header">
             <div>
@@ -332,67 +370,68 @@
         </section>
 
         <section class="page" id="page-usuarios">
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">Usuários</h1>
-      <p class="page-subtitle">Cadastro e gerenciamento de usuários (somente superusuário)</p>
-    </div>
-    <button class="btn btn-ghost" onclick="loadUsuarios()">Atualizar</button>
-  </div>
-
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Criar novo usuário</div>
-        <div class="card-subtitle">Defina o perfil e o nível de acesso de cada usuário</div>
-      </div>
-
-      <form class="form" onsubmit="event.preventDefault(); handleCreateUser();">
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Usuário</label>
-            <input class="form-input" id="new-user-username" type="text" placeholder="ex: funcionario02" required>
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Usuários</h1>
+              <p class="page-subtitle">Cadastro e gerenciamento de usuários (somente superusuário)</p>
+            </div>
+            <button class="btn btn-ghost" onclick="loadUsuarios()">Atualizar</button>
           </div>
-          <div class="form-group">
-            <label class="form-label">Senha</label>
-            <input class="form-input" id="new-user-password" type="password" placeholder="••••••••" required>
+
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Criar novo usuário</div>
+                <div class="card-subtitle">Defina o perfil e o nível de acesso de cada usuário</div>
+              </div>
+
+              <form class="form" onsubmit="event.preventDefault(); handleCreateUser();">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Usuário</label>
+                    <input class="form-input" id="new-user-username" type="text" placeholder="ex: funcionario02"
+                      required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Senha</label>
+                    <input class="form-input" id="new-user-password" type="password" placeholder="••••••••" required>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Nome (opcional)</label>
+                  <input class="form-input" id="new-user-name" type="text" placeholder="Nome do funcionário">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Perfil</label>
+                  <select class="form-select" id="new-user-profile" required>
+                    <option value="USER">Vendedor - gerencia próprias vendas</option>
+                    <option value="ADMIN">Administrador - gerencia dados</option>
+                    <option value="SUPERUSER">Superusuário - gerencia usuários</option>
+                  </select>
+                </div>
+
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-primary">Criar usuário</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Lista de usuários</div>
+                <div class="card-subtitle">Usuários cadastrados no banco do Supabase</div>
+              </div>
+
+              <div id="usuarios-list" class="user-list">
+                <div class="loading-overlay">
+                  <div class="spinner"></div> Carregando usuários...
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Nome (opcional)</label>
-          <input class="form-input" id="new-user-name" type="text" placeholder="Nome do funcionário">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Perfil</label>
-          <select class="form-select" id="new-user-profile" required>
-            <option value="USER">Vendedor - gerencia próprias vendas</option>
-            <option value="ADMIN">Administrador - gerencia dados</option>
-            <option value="SUPERUSER">Superusuário - gerencia usuários</option>
-          </select>
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Criar usuário</button>
-        </div>
-      </form>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Lista de usuários</div>
-        <div class="card-subtitle">Usuários cadastrados no banco do Supabase</div>
-      </div>
-
-      <div id="usuarios-list" class="user-list">
-        <div class="loading-overlay">
-          <div class="spinner"></div> Carregando usuários...
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+        </section>
 
         <section class="page" id="page-historico">
           <div class="page-header">
@@ -400,7 +439,10 @@
               <h1 class="page-title">Histórico &amp; Logs</h1>
               <p class="page-subtitle">Rastreabilidade de ações e erros do sistema</p>
             </div>
-            <button class="btn btn-ghost" onclick="loadHistorico()">Atualizar</button>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-ghost" onclick="exportToCSV()">Exportar CSV</button>
+              <button class="btn btn-ghost" onclick="loadHistorico()">Atualizar</button>
+            </div>
           </div>
 
           <div class="tabs-container" style="margin-bottom: 20px; display: flex; gap: 10px;">
@@ -470,7 +512,7 @@
 
   </div> <!-- Fechamento da secure-app -->
 
-  <script src="/app.js?v=20260415-4"></script>
+  <script src="/app.js?v=20260430-FIX"></script>
   <script>
     (function () {
       const canvas = document.getElementById('global-bg-canvas');

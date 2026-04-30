@@ -48,5 +48,9 @@ public record MovimentacaoFinanceiraRequest(
         Integer quantidadeParcelas,
 
         @NotNull(message = "dataPrimeiroVencimento e obrigatoria")
-        LocalDate dataPrimeiroVencimento) {
+        LocalDate dataPrimeiroVencimento,
+
+        Long produtoId,
+        Integer quantidade,
+        Long clienteId) {
 }

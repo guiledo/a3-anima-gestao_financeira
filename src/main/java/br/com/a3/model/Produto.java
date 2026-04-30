@@ -7,6 +7,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -34,6 +36,10 @@ public class Produto {
 
     @Column(nullable = false)
     private Boolean ativo;
+
+    @ManyToOne
+    @JoinColumn(name = "usuario_id", nullable = false)
+    private UsuarioSistema usuario;
 
     public Long getId() {
         return id;
@@ -89,5 +95,13 @@ public class Produto {
 
     public void setAtivo(Boolean ativo) {
         this.ativo = ativo;
+    }
+
+    public UsuarioSistema getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(UsuarioSistema usuario) {
+        this.usuario = usuario;
     }
 }

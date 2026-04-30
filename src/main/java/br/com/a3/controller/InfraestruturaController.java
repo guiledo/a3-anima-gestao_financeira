@@ -249,7 +249,7 @@ public class InfraestruturaController {
     private String plainPurposeForTable(String schema, String tableName) {
         return switch (schema + "." + tableName) {
             case "public.produtos" ->
-                "Guarda os produtos vendidos, seus precos, custos, estoque e status.";
+                "Guarda os produtos do catalogo. Cada usuario gerencia seus proprios itens de forma isolada.";
             case "public.movimentacoes_financeiras" ->
                 "Registra vendas, recebimentos e despesas. Cada vendedor fica vinculado as proprias movimentacoes.";
             case "public.usuarios_sistema" ->
@@ -364,7 +364,7 @@ public class InfraestruturaController {
             case "public.movimentacoes_financeiras" ->
                 "Lancamentos de entrada e saida da aplicacao A3.";
             case "public.produtos" ->
-                "Catalogo de produtos da aplicacao A3.";
+                "Catalogo de produtos isolado por usuario da aplicacao A3.";
             case "public.usuarios" ->
                 "Tabela legada visivel no schema public; nao e a base principal da autenticacao atual.";
             case "public.usuarios_sistema" ->
@@ -408,7 +408,14 @@ public class InfraestruturaController {
         stack.add(tech("Tomcat", safeVersion(ServerInfo.getServerInfo()), "web"));
         stack.add(tech("Spring Data JPA", safeVersion(packageVersion("org.springframework.data.jpa.repository.JpaRepository")), "persistencia"));
         stack.add(tech("Hibernate ORM", safeVersion(Version.getVersionString()), "persistencia"));
-        stack.add(tech("HikariCP", safeVersion(HikariConfig.class.getPackage().getImplementationVersion()), "persistencia"));
+        
+        String hikariVersion = packageVersion("com.zaxxer.hikari.HikariConfig");
+        if (hikariVersion == null || hikariVersion.isBlank()) {
+            // Fallback para versoes comuns vinculadas ao Spring Boot 2.7.x / 3.x
+            hikariVersion = "4.0.3+ (Spring Managed)";
+        }
+        stack.add(tech("HikariCP", hikariVersion, "persistencia"));
+        
         stack.add(tech(detectDatabaseEngine(datasourceUrl) + " Database", safeVersion(readDatabaseVersion()), "banco"));
         stack.add(tech("Frontend", "HTML + CSS + JavaScript estatico", "ui"));
         return stack;
@@ -524,7 +531,11 @@ public class InfraestruturaController {
     private String packageVersion(String className) {
         try {
             Class<?> type = Class.forName(className);
-            return type.getPackage().getImplementationVersion();
+            String version = type.getPackage().getImplementationVersion();
+            if (version == null || version.isBlank()) {
+                version = type.getPackage().getSpecificationVersion();
+            }
+            return version;
         } catch (ClassNotFoundException e) {
             return null;
         }

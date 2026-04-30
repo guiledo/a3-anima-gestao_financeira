@@ -39,4 +39,9 @@ data/*
 ### Environment Variables ###
 .env
 .env.local
-!.env
+.env.*
+!.env.example
+
+### Logs ###
+*.log
+logs/
