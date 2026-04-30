@@ -21,5 +21,5 @@ jobs:
             exit 0
           fi
           echo "Pinging database to keep it alive..."
-          psql $DATABASE_URL -c "SELECT 1;"
+          psql "$DATABASE_URL" -c "SELECT 1;"
 
