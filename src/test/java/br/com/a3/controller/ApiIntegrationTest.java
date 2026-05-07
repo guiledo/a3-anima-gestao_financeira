@@ -25,8 +25,8 @@ import br.com.a3.model.TipoPagamento;
 import br.com.a3.model.TipoMovimentacao;
 import br.com.a3.repository.MovimentacaoFinanceiraRepository;
 import br.com.a3.repository.ProdutoRepository;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ApiIntegrationTest {
@@ -70,8 +70,8 @@ class ApiIntegrationTest {
         assertEquals(201, respostaCriacao.statusCode());
         JsonNode produtoCriado = objectMapper.readTree(respostaCriacao.body());
         assertTrue(produtoCriado.get("id").isNumber());
-        assertEquals("Notebook Dell", produtoCriado.get("nome").stringValue());
-        assertEquals("Informatica", produtoCriado.get("categoria").stringValue());
+        assertEquals("Notebook Dell", produtoCriado.get("nome").asText());
+        assertEquals("Informatica", produtoCriado.get("categoria").asText());
         assertEquals(8, produtoCriado.get("estoque").asInt());
         assertTrue(produtoCriado.get("ativo").asBoolean());
 
@@ -80,7 +80,7 @@ class ApiIntegrationTest {
         assertEquals(200, respostaLista.statusCode());
         JsonNode listaProdutos = objectMapper.readTree(respostaLista.body());
         assertEquals(1, listaProdutos.size());
-        assertEquals("Notebook Dell", listaProdutos.get(0).get("nome").stringValue());
+        assertEquals("Notebook Dell", listaProdutos.get(0).get("nome").asText());
     }
 
     @Test
@@ -104,11 +104,11 @@ class ApiIntegrationTest {
         assertEquals(201, respostaCriacao.statusCode());
         JsonNode movimentacaoCriada = objectMapper.readTree(respostaCriacao.body());
         assertTrue(movimentacaoCriada.get("id").isNumber());
-        assertEquals("ENTRADA", movimentacaoCriada.get("tipo").stringValue());
+        assertEquals("ENTRADA", movimentacaoCriada.get("tipo").asText());
         assertEquals(1500.0, movimentacaoCriada.get("valor").asDouble());
-        assertEquals("Cliente XPTO", movimentacaoCriada.get("cliente").stringValue());
-        assertEquals("Vendas", movimentacaoCriada.get("categoria").stringValue());
-        assertEquals("PARCELADO", movimentacaoCriada.get("tipoPagamento").stringValue());
+        assertEquals("Cliente XPTO", movimentacaoCriada.get("cliente").asText());
+        assertEquals("Vendas", movimentacaoCriada.get("categoria").asText());
+        assertEquals("PARCELADO", movimentacaoCriada.get("tipoPagamento").asText());
         assertEquals(3, movimentacaoCriada.get("quantidadeParcelas").asInt());
 
         HttpResponse<String> respostaLista = get("/api/v1/movimentacoes");
@@ -116,8 +116,8 @@ class ApiIntegrationTest {
         assertEquals(200, respostaLista.statusCode());
         JsonNode listaMovimentacoes = objectMapper.readTree(respostaLista.body());
         assertEquals(1, listaMovimentacoes.size());
-        assertEquals("Venda do dia", listaMovimentacoes.get(0).get("descricao").stringValue());
-        assertEquals("Cliente XPTO", listaMovimentacoes.get(0).get("cliente").stringValue());
+        assertEquals("Venda do dia", listaMovimentacoes.get(0).get("descricao").asText());
+        assertEquals("Cliente XPTO", listaMovimentacoes.get(0).get("cliente").asText());
     }
 
     @Test
@@ -137,7 +137,7 @@ class ApiIntegrationTest {
 
         assertEquals(400, resposta.statusCode());
         JsonNode erro = objectMapper.readTree(resposta.body());
-        assertEquals("Falha de validacao", erro.get("title").stringValue());
+        assertEquals("Falha de validacao", erro.get("title").asText());
         assertTrue(erro.get("errors").isArray());
         assertFalse(erro.get("errors").isEmpty());
     }
@@ -213,9 +213,9 @@ class ApiIntegrationTest {
 
         JsonNode clientes = relatorio.get("fechamentoPorCliente");
         assertEquals(2, clientes.size());
-        assertEquals("Cliente Alfa", clientes.get(0).get("cliente").stringValue());
+        assertEquals("Cliente Alfa", clientes.get(0).get("cliente").asText());
         assertEquals(300.0, clientes.get(0).get("valorDevidoNoPeriodo").asDouble());
-        assertEquals("04/2026", clientes.get(0).get("debitosMensais").get(0).get("competencia").stringValue());
+        assertEquals("04/2026", clientes.get(0).get("debitosMensais").get(0).get("competencia").asText());
         assertEquals(200.0, clientes.get(0).get("debitosMensais").get(0).get("valorDevido").asDouble());
     }
 
@@ -226,10 +226,10 @@ class ApiIntegrationTest {
         assertEquals(200, resposta.statusCode());
 
         JsonNode payload = objectMapper.readTree(resposta.body());
-        assertEquals("a3-anima-gestao_financeira", payload.get("application").get("name").stringValue());
-        assertEquals("H2", payload.get("database").get("engine").stringValue());
+        assertEquals("a3-anima-gestao_financeira", payload.get("application").get("name").asText());
+        assertEquals("H2", payload.get("database").get("engine").asText());
         assertTrue(payload.get("database").get("consoleEnabled").asBoolean());
-        assertEquals("/api/v1", payload.get("access").get("apiBasePath").stringValue());
+        assertEquals("/api/v1", payload.get("access").get("apiBasePath").asText());
         assertTrue(payload.get("stack").isArray());
         assertTrue(payload.get("endpoints").isArray());
         assertTrue(payload.get("warnings").isArray());

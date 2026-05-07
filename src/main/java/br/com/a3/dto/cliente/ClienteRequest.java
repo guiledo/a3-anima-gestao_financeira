@@ -8,7 +8,8 @@ public record ClienteRequest(
     @Size(max = 120)
     String nome,
 
-    @Size(max = 14)
+    @NotBlank(message = "CPF e obrigatorio")
+    @Size(min = 11, max = 14, message = "CPF deve ter entre 11 e 14 caracteres")
     String cpf,
 
     @Size(max = 100)

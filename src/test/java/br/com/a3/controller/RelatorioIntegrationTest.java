@@ -24,8 +24,8 @@ import br.com.a3.model.TipoPagamento;
 import br.com.a3.model.TipoMovimentacao;
 import br.com.a3.repository.MovimentacaoFinanceiraRepository;
 import br.com.a3.repository.ProdutoRepository;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class RelatorioIntegrationTest {
@@ -82,15 +82,15 @@ class RelatorioIntegrationTest {
         assertEquals(4, relatorio.get("quantidadeMovimentacoes").asInt());
 
         JsonNode periodo = relatorio.get("periodo");
-        assertEquals(dataInicio, periodo.get("inicio").stringValue());
-        assertEquals(dataFim, periodo.get("fim").stringValue());
-
+        assertEquals(dataInicio, periodo.get("inicio").asText());
+        assertEquals(dataFim, periodo.get("fim").asText());
+        
         assertTrue(relatorio.get("mediaDiariaEntradas").asDouble() > 0);
         assertTrue(relatorio.get("mediaDiariaSaidas").asDouble() > 0);
-
+        
         JsonNode entradasPorCategoria = relatorio.get("entradasPorCategoria");
         assertEquals(1, entradasPorCategoria.size());
-        assertEquals("Vendas", entradasPorCategoria.get(0).get("categoria").stringValue());
+        assertEquals("Vendas", entradasPorCategoria.get(0).get("categoria").asText());
         assertEquals(2, entradasPorCategoria.get(0).get("quantidade").asInt());
         assertEquals(8000.0, entradasPorCategoria.get(0).get("valorTotal").asDouble());
 

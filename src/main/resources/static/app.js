@@ -1092,7 +1092,7 @@ function onMovimentacaoClienteChange(select) {
 }
 
 function onMovimentacaoQuantidadeChange() {
-  const select = document.getElementById('mov-produto-id');
+  const select = document.getElementById('mov-produto-id-unique');
   const selectedOption = select.options[select.selectedIndex];
   const qtdEl = document.getElementById('mov-quantidade');
   const valorEl = document.getElementById('mov-valor');
@@ -2655,6 +2655,12 @@ async function openClienteModal(id) {
   `;
 
   openModal(isEdit ? 'Editar Cliente' : 'Cadastrar Novo Cliente', body, footer);
+  
+  // Adicionar máscaras
+  const cpfInput = document.getElementById('cli-cpf');
+  const telInput = document.getElementById('cli-telefone');
+  if (cpfInput) cpfInput.addEventListener('input', (e) => applyCpfMask(e.target));
+  if (telInput) telInput.addEventListener('input', (e) => applyPhoneMask(e.target));
 
   if (isEdit) {
     try {
@@ -2682,6 +2688,11 @@ async function saveCliente() {
 
   if (!data.nome) {
     showToast('Nome é obrigatório', 'error');
+    return;
+  }
+
+  if (!data.cpf) {
+    showToast('CPF é obrigatório', 'error');
     return;
   }
 
@@ -2792,4 +2803,33 @@ async function handleChangePassword(event) {
     if (btn) { btn.disabled = false; btn.textContent = 'Salvar Senha'; }
     showToast(err.message || 'Erro ao alterar a senha.', 'error');
   }
+}
+
+// --- UTILITÁRIOS DE MÁSCARA ---
+function applyCpfMask(input) {
+  let value = input.value.replace(/\D/g, '');
+  if (value.length > 11) value = value.slice(0, 11);
+  if (value.length > 9) {
+    value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  } else if (value.length > 6) {
+    value = value.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
+  } else if (value.length > 3) {
+    value = value.replace(/(\d{3})(\d{0,3})/, '$1.$2');
+  }
+  input.value = value;
+}
+
+function applyPhoneMask(input) {
+  let value = input.value.replace(/\D/g, '');
+  if (value.length > 11) value = value.slice(0, 11);
+  if (value.length > 10) {
+    value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+  } else if (value.length > 6) {
+    value = value.replace(/^(\d{2})(\d{4,5})(\d{0,4}).*/, '($1) $2-$3');
+  } else if (value.length > 2) {
+    value = value.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+  } else if (value.length > 0) {
+    value = value.replace(/^(\d*)/, '($1');
+  }
+  input.value = value;
 }

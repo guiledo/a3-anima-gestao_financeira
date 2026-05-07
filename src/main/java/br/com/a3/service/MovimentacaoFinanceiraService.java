@@ -62,6 +62,10 @@ public class MovimentacaoFinanceiraService {
                     produto.getNome(), produto.getId(), movimentacao.getTipo(), qtd, estoqueAtual);
 
             if (TipoMovimentacao.ENTRADA.equals(movimentacao.getTipo())) {
+                if (estoqueAtual < qtd) {
+                    throw new IllegalArgumentException("Estoque insuficiente para o produto: " + produto.getNome() 
+                        + ". Disponível: " + estoqueAtual + ", Solicitado: " + qtd);
+                }
                 int novoEstoque = estoqueAtual - qtd;
                 produto.setEstoque(novoEstoque);
                 produtoRepository.saveAndFlush(produto);
