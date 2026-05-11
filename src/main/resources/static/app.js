@@ -957,7 +957,7 @@ async function openMovimentacaoModal(id) {
         <label class="form-label">Cliente (Opcional)</label>
         <select id="mov-cliente-id" class="form-select" onchange="onMovimentacaoClienteChange(this)">
           <option value="">-- Venda Avulsa / Ignorar --</option>
-          ${clientes.map(c => `<option value="${c.id}" data-nome="${c.nome}">${escapeHtml(c.nome)} (${c.cpf || 'Sem CPF'})</option>`).join('')}
+          ${clientes.map(c => `<option value="${c.id}" data-nome="${c.nome}">${escapeHtml(c.nome)} (${c.documento || 'Sem Documento'})</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -2608,7 +2608,7 @@ function renderClientes(clientes) {
   tbody.innerHTML = clientes.map(cli => `
     <tr>
       <td class="td-name">${escapeHtml(cli.nome)}</td>
-      <td>${cli.cpf || '<span class="muted">N/A</span>'}</td>
+      <td>${cli.documento || '<span class="muted">N/A</span>'}</td>
       <td>${cli.email || '<span class="muted">N/A</span>'}</td>
       <td>${cli.telefone || '<span class="muted">N/A</span>'}</td>
       <td>
@@ -2631,8 +2631,8 @@ async function openClienteModal(id) {
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">CPF</label>
-        <input type="text" id="cli-cpf" class="form-input" placeholder="000.000.000-00" maxlength="14">
+        <label class="form-label">Documento (CPF/CNPJ)</label>
+        <input type="text" id="cli-documento" class="form-input" placeholder="000.000.000-00 ou 00.000.000/0000-00" maxlength="18">
       </div>
       <div class="form-group">
         <label class="form-label">Telefone</label>
@@ -2657,16 +2657,16 @@ async function openClienteModal(id) {
   openModal(isEdit ? 'Editar Cliente' : 'Cadastrar Novo Cliente', body, footer);
   
   // Adicionar máscaras
-  const cpfInput = document.getElementById('cli-cpf');
+  const documentoInput = document.getElementById('cli-documento');
   const telInput = document.getElementById('cli-telefone');
-  if (cpfInput) cpfInput.addEventListener('input', (e) => applyCpfMask(e.target));
+  if (documentoInput) documentoInput.addEventListener('input', (e) => applyDocumentoMask(e.target));
   if (telInput) telInput.addEventListener('input', (e) => applyPhoneMask(e.target));
 
   if (isEdit) {
     try {
       const cli = await apiGet(`/clientes/${id}`);
       document.getElementById('cli-nome').value = cli.nome || '';
-      document.getElementById('cli-cpf').value = cli.cpf || '';
+      document.getElementById('cli-documento').value = cli.documento || '';
       document.getElementById('cli-telefone').value = cli.telefone || '';
       document.getElementById('cli-email').value = cli.email || '';
       document.getElementById('cli-endereco').value = cli.endereco || '';
@@ -2680,7 +2680,7 @@ async function saveCliente() {
   const id = document.getElementById('cli-id').value;
   const data = {
     nome: document.getElementById('cli-nome').value.trim(),
-    cpf: document.getElementById('cli-cpf').value.trim(),
+    documento: document.getElementById('cli-documento').value.trim(),
     telefone: document.getElementById('cli-telefone').value.trim(),
     email: document.getElementById('cli-email').value.trim(),
     endereco: document.getElementById('cli-endereco').value.trim()
@@ -2691,8 +2691,8 @@ async function saveCliente() {
     return;
   }
 
-  if (!data.cpf) {
-    showToast('CPF é obrigatório', 'error');
+  if (!data.documento) {
+    showToast('Documento é obrigatório', 'error');
     return;
   }
 
@@ -2806,15 +2806,31 @@ async function handleChangePassword(event) {
 }
 
 // --- UTILITÁRIOS DE MÁSCARA ---
-function applyCpfMask(input) {
+function applyDocumentoMask(input) {
   let value = input.value.replace(/\D/g, '');
-  if (value.length > 11) value = value.slice(0, 11);
-  if (value.length > 9) {
-    value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-  } else if (value.length > 6) {
-    value = value.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
-  } else if (value.length > 3) {
-    value = value.replace(/(\d{3})(\d{0,3})/, '$1.$2');
+  if (value.length > 14) value = value.slice(0, 14);
+  
+  if (value.length <= 11) {
+    if (value.length > 9) {
+      value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    } else if (value.length > 6) {
+      value = value.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
+    } else if (value.length > 3) {
+      value = value.replace(/(\d{3})(\d{0,3})/, '$1.$2');
+    }
+  } else {
+    value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
+    if (value.indexOf('-') === -1) {
+      if (value.length > 12) {
+        value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})/, '$1.$2.$3/$4-');
+      } else if (value.length > 8) {
+        value = value.replace(/^(\d{2})(\d{3})(\d{3})/, '$1.$2.$3/');
+      } else if (value.length > 5) {
+        value = value.replace(/^(\d{2})(\d{3})/, '$1.$2.');
+      } else if (value.length > 2) {
+        value = value.replace(/^(\d{2})/, '$1.');
+      }
+    }
   }
   input.value = value;
 }
