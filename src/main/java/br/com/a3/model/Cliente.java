@@ -20,8 +20,8 @@ public class Cliente {
     @Column(nullable = false, length = 120)
     private String nome;
 
-    @Column(nullable = false, length = 14)
-    private String cpf;
+    @Column(nullable = true, length = 20)
+    private String documento;
 
     @Column(length = 100)
     private String email;
@@ -52,12 +52,12 @@ public class Cliente {
         this.nome = nome;
     }
 
-    public String getCpf() {
-        return cpf;
+    public String getDocumento() {
+        return documento;
     }
 
-    public void setCpf(String cpf) {
-        this.cpf = cpf;
+    public void setDocumento(String documento) {
+        this.documento = documento;
     }
 
     public String getEmail() {

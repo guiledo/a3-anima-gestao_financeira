@@ -72,7 +72,7 @@ public class ClienteService {
 
     private void aplicarDados(Cliente cliente, ClienteRequest request) {
         cliente.setNome(request.nome());
-        cliente.setCpf(request.cpf());
+        cliente.setDocumento(request.documento());
         cliente.setEmail(request.email());
         cliente.setTelefone(request.telefone());
         cliente.setEndereco(request.endereco());
@@ -82,7 +82,7 @@ public class ClienteService {
         return new ClienteResponse(
                 cliente.getId(),
                 cliente.getNome(),
-                cliente.getCpf(),
+                cliente.getDocumento(),
                 cliente.getEmail(),
                 cliente.getTelefone(),
                 cliente.getEndereco());
