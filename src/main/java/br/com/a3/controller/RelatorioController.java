@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.a3.dto.relatorio.RelatorioFinanceiroResponse;
 import br.com.a3.dto.relatorio.RelatorioProdutosResponse;
+import br.com.a3.dto.relatorio.RelatorioUsuarioResponse;
 import br.com.a3.service.RelatorioService;
 
 @RestController
@@ -32,5 +33,12 @@ public class RelatorioController {
     @GetMapping("/produtos")
     public RelatorioProdutosResponse relatorioProdutos() {
         return relatorioService.gerarRelatorioProdutos();
+    }
+
+    @GetMapping("/financeiro/usuarios")
+    public java.util.List<RelatorioUsuarioResponse> relatorioFinanceiroPorUsuario(
+            @RequestParam("dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam("dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim) {
+        return relatorioService.gerarRelatorioFinanceiroPorUsuario(dataInicio, dataFim);
     }
 }

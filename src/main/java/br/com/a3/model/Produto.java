@@ -86,7 +86,11 @@ public class Produto {
     }
 
     public void setEstoque(Integer estoque) {
-        this.estoque = estoque;
+        if (estoque != null && estoque < 0) {
+            this.estoque = 0;
+        } else {
+            this.estoque = estoque;
+        }
     }
 
     public Boolean getAtivo() {

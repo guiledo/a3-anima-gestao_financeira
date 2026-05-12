@@ -9,6 +9,10 @@ import br.com.a3.model.Produto;
 
 public interface ProdutoRepository extends JpaRepository<Produto, Long> {
 
+    List<Produto> findAllByOrderByNomeAsc();
+
+    List<Produto> findByAtivoTrueOrderByNomeAsc();
+
     List<Produto> findAllByUsuarioIdOrderByNomeAsc(Long usuarioId);
 
     List<Produto> findByUsuarioIdAndAtivoTrueOrderByNomeAsc(Long usuarioId);

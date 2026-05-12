@@ -57,6 +57,12 @@ public class UsuarioSistemaService implements UserDetailsService {
         return buscarPorUsernameEntidade(username);
     }
 
+    @Transactional(readOnly = true)
+    public boolean usuarioLogadoEhGestor() {
+        PerfilUsuario perfil = getUsuarioLogado().getPerfil();
+        return perfil == PerfilUsuario.ADMIN || perfil == PerfilUsuario.SUPERUSER;
+    }
+
     public UsuarioResponse criar(UsuarioRequest request) {
         validarUsernameDisponivel(null, request.username());
 
@@ -100,6 +106,18 @@ public class UsuarioSistemaService implements UserDetailsService {
         validarUltimoSuperuserAtivo(eraSuperuserAtivo, usuario);
 
         return toResponse(usuarioSistemaRepository.save(usuario));
+    }
+
+    public void excluir(Long id) {
+        UsuarioSistema usuario = buscarEntidade(id);
+        boolean eraSuperuserAtivo = usuario.getPerfil() == PerfilUsuario.SUPERUSER && Boolean.TRUE.equals(usuario.getAtivo());
+        validarUltimoSuperuserAtivo(eraSuperuserAtivo, null);
+        try {
+            usuarioSistemaRepository.delete(usuario);
+        } catch (Exception ex) {
+            usuario.setAtivo(false);
+            usuarioSistemaRepository.save(usuario);
+        }
     }
 
     public void garantirSuperusuarioInicial(String nome, String username, String password) {
@@ -157,7 +175,8 @@ public class UsuarioSistemaService implements UserDetailsService {
     }
 
     private void validarUltimoSuperuserAtivo(boolean eraSuperuserAtivo, UsuarioSistema usuarioAtualizado) {
-        boolean continuaComoSuperuserAtivo = usuarioAtualizado.getPerfil() == PerfilUsuario.SUPERUSER
+        boolean continuaComoSuperuserAtivo = usuarioAtualizado != null 
+                && usuarioAtualizado.getPerfil() == PerfilUsuario.SUPERUSER
                 && Boolean.TRUE.equals(usuarioAtualizado.getAtivo());
 
         if (!eraSuperuserAtivo || continuaComoSuperuserAtivo) {
@@ -166,7 +185,7 @@ public class UsuarioSistemaService implements UserDetailsService {
 
         long superusersAtivos = usuarioSistemaRepository.countByPerfilAndAtivoTrue(PerfilUsuario.SUPERUSER);
         if (superusersAtivos <= 1) {
-            throw new IllegalArgumentException("O ultimo superusuario ativo nao pode ser desativado ou rebaixado.");
+            throw new IllegalArgumentException("O ultimo superusuario ativo nao pode ser removido ou desativado.");
         }
     }
 

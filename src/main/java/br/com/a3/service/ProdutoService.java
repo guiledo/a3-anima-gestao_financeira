@@ -33,8 +33,7 @@ public class ProdutoService {
 
     @Transactional(readOnly = true)
     public List<ProdutoResponse> listar() {
-        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
-        return produtoRepository.findAllByUsuarioIdOrderByNomeAsc(usuarioId)
+        return produtoRepository.findAllByOrderByNomeAsc()
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -59,26 +58,18 @@ public class ProdutoService {
 
     @Transactional(readOnly = true)
     public List<Produto> listarProdutosAtivos() {
-        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
-        return produtoRepository.findByUsuarioIdAndAtivoTrueOrderByNomeAsc(usuarioId);
+        return produtoRepository.findByAtivoTrueOrderByNomeAsc();
     }
 
     @Transactional(readOnly = true)
     public List<Produto> listarTodos() {
-        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
-        return produtoRepository.findByUsuarioId(usuarioId);
+        return produtoRepository.findAllByOrderByNomeAsc();
     }
 
 
     private Produto buscarEntidade(Long id) {
-        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
-        Produto produto = produtoRepository.findById(id)
+        return produtoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Produto com id " + id + " nao encontrado"));
-
-        if (!produto.getUsuario().getId().equals(usuarioId)) {
-            throw new org.springframework.security.access.AccessDeniedException("Voce nao tem permissao para acessar este produto.");
-        }
-        return produto;
     }
 
     private void aplicarDados(Produto produto, ProdutoRequest request) {
@@ -86,7 +77,11 @@ public class ProdutoService {
         produto.setCategoria(request.categoria());
         produto.setCusto(request.custo());
         produto.setPreco(request.preco());
-        produto.setEstoque(request.estoque());
+        
+        // Garante que o estoque nunca seja negativo (mínimo 0)
+        int estoqueSolicitado = request.estoque() != null ? request.estoque() : 0;
+        produto.setEstoque(Math.max(0, estoqueSolicitado));
+        
         produto.setAtivo(request.ativo());
     }
 
@@ -103,12 +98,14 @@ public class ProdutoService {
 
     public void deduzirEstoque(Long produtoId, int quantidade) {
         Produto produto = buscarEntidade(produtoId);
-        if (produto.getEstoque() < quantidade) {
-             // Opcional: lancar excecao se estoque for insuficiente?
-             // Por enquanto vamos permitir estoque negativo se necessario, 
-             // ou apenas subtrair.
+        int estoqueAtual = produto.getEstoque() != null ? produto.getEstoque() : 0;
+
+        if (estoqueAtual < quantidade) {
+            throw new IllegalArgumentException(
+                    "Estoque insuficiente para o produto: " + produto.getNome()
+                            + ". Disponivel: " + estoqueAtual + ", Solicitado: " + quantidade);
         }
-        produto.setEstoque(produto.getEstoque() - quantidade);
+        produto.setEstoque(estoqueAtual - quantidade);
         produtoRepository.save(produto);
     }
 }
