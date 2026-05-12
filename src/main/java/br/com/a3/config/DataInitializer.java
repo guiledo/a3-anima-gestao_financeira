@@ -21,6 +21,7 @@ import br.com.a3.repository.MovimentacaoFinanceiraRepository;
 import br.com.a3.repository.ProdutoRepository;
 import br.com.a3.repository.UsuarioSistemaRepository;
 import br.com.a3.service.UsuarioSistemaService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Component
 public class DataInitializer implements ApplicationRunner {
@@ -29,6 +30,7 @@ public class DataInitializer implements ApplicationRunner {
     private final MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository;
     private final UsuarioSistemaRepository usuarioSistemaRepository;
     private final UsuarioSistemaService usuarioSistemaService;
+    private final PasswordEncoder passwordEncoder;
     private final boolean seedEnabled;
 
     public DataInitializer(
@@ -36,11 +38,13 @@ public class DataInitializer implements ApplicationRunner {
             MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository,
             UsuarioSistemaRepository usuarioSistemaRepository,
             UsuarioSistemaService usuarioSistemaService,
+            PasswordEncoder passwordEncoder,
             @Value("${app.seed.enabled:true}") boolean seedEnabled) {
         this.produtoRepository = produtoRepository;
         this.movimentacaoFinanceiraRepository = movimentacaoFinanceiraRepository;
         this.usuarioSistemaRepository = usuarioSistemaRepository;
         this.usuarioSistemaService = usuarioSistemaService;
+        this.passwordEncoder = passwordEncoder;
         this.seedEnabled = seedEnabled;
     }
 
@@ -52,6 +56,7 @@ public class DataInitializer implements ApplicationRunner {
         }
 
         criarUsuariosTeste();
+        resgatarProdutosOrfaos();
 
         UsuarioSistema admin = usuarioSistemaRepository.findByUsernameIgnoreCase("a3_admin_2026")
                 .orElse(null);
@@ -87,17 +92,82 @@ public class DataInitializer implements ApplicationRunner {
         }
     }
 
+    private void resgatarProdutosOrfaos() {
+        UsuarioSistema admin = usuarioSistemaRepository.findByUsernameIgnoreCase("a3_admin_catalogo")
+                .orElse(usuarioSistemaRepository.findByUsernameIgnoreCase("a3_admin_2026").orElse(null));
+
+        if (admin == null) return;
+
+        List<Produto> todos = produtoRepository.findAll();
+        long resgatados = 0;
+        long corrigidos = 0;
+        for (Produto p : todos) {
+            try {
+                // Resgate de órfãos
+                if (p.getUsuario() == null || !usuarioSistemaRepository.existsById(p.getUsuario().getId())) {
+                    p.setUsuario(admin);
+                    produtoRepository.save(p);
+                    resgatados++;
+                }
+                // Correção de estoque negativo
+                if (p.getEstoque() != null && p.getEstoque() < 0) {
+                    p.setEstoque(0);
+                    produtoRepository.save(p);
+                    corrigidos++;
+                }
+            } catch (Exception e) {
+                p.setUsuario(admin);
+                if (p.getEstoque() != null && p.getEstoque() < 0) p.setEstoque(0);
+                produtoRepository.save(p);
+                resgatados++;
+            }
+        }
+        if (resgatados > 0) System.out.println(">>> RESGATE: " + resgatados + " produtos orfaos vinculados ao admin.");
+        if (corrigidos > 0) System.out.println(">>> CORRECAO: " + corrigidos + " produtos com estoque negativo foram resetados para 0.");
+    }
+
     private void criarUsuariosTeste() {
+        // Criar Admin de Catálogo se não existir
+        if (usuarioSistemaRepository.findByUsernameIgnoreCase("a3_admin_catalogo").isEmpty()) {
+            UsuarioRequest request = new UsuarioRequest(
+                    "Admin Catalogo",
+                    "a3_admin_catalogo",
+                    "gestaofinanceira2026",
+                    PerfilUsuario.ADMIN,
+                    true);
+            usuarioSistemaService.criar(request);
+        }
+
         for (int i = 1; i <= 6; i++) {
-            String username = "usuario" + i;
-            if (usuarioSistemaRepository.findByUsernameIgnoreCase(username).isEmpty()) {
+            final int indice = i;
+            String usernameAntigo = "usuario" + i;
+            String usernameNovo = "vendedor" + i;
+
+            usuarioSistemaRepository.findByUsernameIgnoreCase(usernameAntigo)
+                    .ifPresent(usuario -> {
+                        if (usuarioSistemaRepository.findByUsernameIgnoreCase(usernameNovo).isEmpty()) {
+                            usuario.setUsername(usernameNovo);
+                        }
+                        usuario.setNome("Vendedor " + indice);
+                        // Força a senha padrão para testes
+                        usuario.setSenhaHash(passwordEncoder.encode("senha123"));
+                        usuarioSistemaRepository.save(usuario);
+                    });
+
+            if (usuarioSistemaRepository.findByUsernameIgnoreCase(usernameNovo).isEmpty()) {
                 UsuarioRequest request = new UsuarioRequest(
-                        "Usuario Teste " + i,
-                        username,
+                        "Vendedor " + indice,
+                        usernameNovo,
                         "senha123",
                         PerfilUsuario.USER,
                         true);
                 usuarioSistemaService.criar(request);
+            } else {
+                // Se já existe com o nome novo, garante a senha também
+                usuarioSistemaRepository.findByUsernameIgnoreCase(usernameNovo).ifPresent(u -> {
+                    u.setSenhaHash(passwordEncoder.encode("senha123"));
+                    usuarioSistemaRepository.save(u);
+                });
             }
         }
     }

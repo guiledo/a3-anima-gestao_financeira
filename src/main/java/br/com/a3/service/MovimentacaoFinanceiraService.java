@@ -90,8 +90,13 @@ public class MovimentacaoFinanceiraService {
 
     @Transactional(readOnly = true)
     public List<MovimentacaoFinanceiraResponse> listar(Authentication authentication) {
-        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
-        List<MovimentacaoFinanceira> movimentacoes = movimentacaoFinanceiraRepository.findAllByUsuarioIdOrderByDataDescIdDesc(usuarioId);
+        List<MovimentacaoFinanceira> movimentacoes;
+        if (isGestor(authentication)) {
+            movimentacoes = movimentacaoFinanceiraRepository.findAllByOrderByDataDescIdDesc();
+        } else {
+            Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
+            movimentacoes = movimentacaoFinanceiraRepository.findAllByUsuarioIdOrderByDataDescIdDesc(usuarioId);
+        }
 
         return movimentacoes
                 .stream()
@@ -121,15 +126,9 @@ public class MovimentacaoFinanceiraService {
     }
 
     private MovimentacaoFinanceira buscarEntidade(Long id) {
-        Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
-        MovimentacaoFinanceira movimentacao = movimentacaoFinanceiraRepository.findById(id)
+        return movimentacaoFinanceiraRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Movimentacao financeira com id " + id + " nao encontrada"));
-        
-        if (!movimentacao.getUsuario().getId().equals(usuarioId)) {
-             throw new AccessDeniedException("Voce nao tem permissao para acessar esta movimentacao.");
-        }
-        return movimentacao;
     }
 
     private void aplicarDados(MovimentacaoFinanceira movimentacao, MovimentacaoFinanceiraRequest request) {

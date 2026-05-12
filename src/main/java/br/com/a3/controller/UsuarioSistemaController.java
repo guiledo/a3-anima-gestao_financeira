@@ -64,4 +64,10 @@ public class UsuarioSistemaController {
     public UsuarioResponse atualizar(@PathVariable Long id, @Valid @RequestBody UsuarioAtualizacaoRequest request) {
         return usuarioSistemaService.atualizar(id, request);
     }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    public void excluir(@PathVariable Long id) {
+        usuarioSistemaService.excluir(id);
+    }
 }

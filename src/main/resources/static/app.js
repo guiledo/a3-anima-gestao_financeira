@@ -5,11 +5,7 @@ window.appLogs = [];
 window.currentDashboardData = null;
 window.movTypeFilter = null;
 
-
-
-
-
-
+// --- UI UTILS ---
 function isMobileView() {
   return window.innerWidth <= MOBILE_BREAKPOINT;
 }
@@ -24,8 +20,8 @@ function updateMobilePageTitle(page) {
     movimentacoes: 'Movimentações',
     relatorios: 'Relatórios',
     historico: 'Histórico e Logs',
-    infraestrutura: 'Gestão de Infra',
-    usuarios: 'Usuários'
+    infraestrutura: 'Gestão de Infra (Supabase)',
+    usuarios: 'Gestão de Acessos'
   };
 
   title.textContent = labels[page] || 'Gestão Financeira';
@@ -72,21 +68,10 @@ function navigateTo(page) {
     window.sqlLogsInterval = null;
   }
 
-  try { 
-    const cu = getCurrentUser(); 
-    if (cu.username) addAppLog('info', `Navegação: ${page} por ${cu.username}`); 
-  } catch(e) {}
-
-  const restrictedForUsers = ['infraestrutura', 'usuarios'];
-  if (sessionStorage.getItem('authA3') === 'true' && !isAdmin() && restrictedForUsers.includes(page)) {
-    showToast('Acesso restrito para funcionários.', 'error');
-    navigateTo('dashboard');
-    return;
-  }
-
-  if (isAuthenticated() && !isSuperuser() && page === 'usuarios') {
-    showToast('Apenas superusuario pode gerenciar usuarios.', 'error');
-    navigateTo('dashboard');
+  // Restrição de Acesso no Front-end
+  const restrictedForNonSuper = ['infraestrutura', 'usuarios'];
+  if (isAuthenticated() && !isSuperuser() && restrictedForNonSuper.includes(page)) {
+    showToast('Acesso exclusivo ao Superusuário.', 'error');
     return;
   }
 
@@ -99,7 +84,6 @@ function navigateTo(page) {
   updateMobilePageTitle(page);
   if (isMobileView()) closeSidebar();
 
-  // Reset filter if navigating normally (unless we just came from card drilldown)
   if (page !== 'movimentacoes') {
     window.movTypeFilter = null;
   }
@@ -109,35 +93,25 @@ function navigateTo(page) {
     case 'produtos': loadProdutos(); break;
     case 'clientes': loadClientes(); break;
     case 'movimentacoes': loadMovimentacoes(); break;
+    case 'relatorios': loadRelatoriosPage(); break;
     case 'historico': loadHistorico(); break;
     case 'infraestrutura': loadInfraestrutura(); break;
     case 'usuarios': loadUsuarios(); break;
   }
 }
 
-/**
- * Navega para movimentações aplicando um filtro de tipo.
- */
 function navigateToMovimentacoesWithFilter(type) {
   window.movTypeFilter = type;
   navigateTo('movimentacoes');
 }
 
+// --- APP UTILS ---
 function addAppLog(type, message) {
   const time = new Date().toLocaleTimeString('pt-BR');
   window.appLogs.unshift({ time, type, message });
   if (window.appLogs.length > 100) window.appLogs.pop();
   renderLogs();
 }
-
-window.onerror = function onWindowError(message, url, line) {
-  addAppLog('error', `JS Error: ${message} na linha ${line}`);
-  return false;
-};
-
-window.addEventListener('unhandledrejection', event => {
-  addAppLog('error', `Promessa rejeitada: ${event.reason}`);
-});
 
 function showToast(message, type = 'info') {
   if (type === 'error') addAppLog('error', message);
@@ -205,10 +179,7 @@ async function apiRequest(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
-async function apiGet(path) {
-  return apiRequest(path);
-}
-
+async function apiGet(path) { return apiRequest(path); }
 async function apiPost(path, data) {
   return apiRequest(path, {
     method: 'POST',
@@ -216,7 +187,6 @@ async function apiPost(path, data) {
     body: JSON.stringify(data)
   });
 }
-
 async function apiPut(path, data) {
   return apiRequest(path, {
     method: 'PUT',
@@ -224,68 +194,43 @@ async function apiPut(path, data) {
     body: JSON.stringify(data)
   });
 }
-
-async function apiDelete(path) {
-  return apiRequest(path, { method: 'DELETE' });
-}
+async function apiDelete(path) { return apiRequest(path, { method: 'DELETE' }); }
 
 function formatCurrency(value) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value || 0);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 }
-
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   const [year, month, day] = dateStr.split('-');
   return `${day}/${month}/${year}`;
 }
-
-function formatTipoPagamento(tipoPagamento) {
-  if (tipoPagamento === 'PARCELADO') return 'Parcelado';
-  if (tipoPagamento === 'AVISTA') return 'À vista';
+function formatTipoPagamento(tipo) {
+  if (tipo === 'PARCELADO') return 'Parcelado';
+  if (tipo === 'AVISTA') return 'À vista';
   return '-';
 }
-
-function formatParcelas(quantidadeParcelas, valorTotal = 0) {
-  const parcelas = Math.max(Number(quantidadeParcelas) || 1, 1);
-  const valor = Number(valorTotal) || 0;
-
-  if (parcelas === 1) {
-    return valor > 0 ? `1 parcela de ${formatCurrency(valor)}` : '1 parcela única';
-  }
-
-  if (valor > 0) {
-    return `${parcelas}x de ${formatCurrency(valor / parcelas)}`;
-  }
-
-  return `${parcelas} parcelas`;
+function formatParcelas(qtd, total = 0) {
+  const n = Math.max(Number(qtd) || 1, 1);
+  const v = Number(total) || 0;
+  if (n === 1) return v > 0 ? `1 parcela de ${formatCurrency(v)}` : '1 parcela única';
+  return v > 0 ? `${n}x de ${formatCurrency(v / n)}` : `${n} parcelas`;
 }
 
 function updateMovimentacaoParcelaPreview() {
   const preview = document.getElementById('mov-parcelas-preview');
-  const tipoPagamento = document.getElementById('mov-tipo-pagamento');
-  const quantidadeParcelas = document.getElementById('mov-quantidade-parcelas');
+  const tipo = document.getElementById('mov-tipo-pagamento');
+  const qtd = document.getElementById('mov-quantidade-parcelas');
   const valor = document.getElementById('mov-valor');
-  if (!preview || !tipoPagamento || !quantidadeParcelas || !valor) return;
+  if (!preview || !tipo || !qtd || !valor) return;
 
-  const parcelas = Math.max(parseInt(quantidadeParcelas.value, 10) || 1, 1);
-  const valorTotal = parseFloat(valor.value) || 0;
+  const n = Math.max(parseInt(qtd.value, 10) || 1, 1);
+  const total = parseFloat(valor.value) || 0;
 
-  if (tipoPagamento.value === 'AVISTA' || parcelas === 1) {
-    preview.textContent = valorTotal > 0
-      ? `Parcela única de ${formatCurrency(valorTotal)}.`
-      : 'Pagamento em parcela única.';
+  if (tipo.value === 'AVISTA' || n === 1) {
+    preview.textContent = total > 0 ? `Parcela única de ${formatCurrency(total)}.` : 'Pagamento em parcela única.';
     return;
   }
-
-  if (valorTotal > 0) {
-    preview.textContent = `${parcelas} parcelas de ${formatCurrency(valorTotal / parcelas)}.`;
-    return;
-  }
-
-  preview.textContent = `${parcelas} parcelas. Informe o valor para calcular cada parcela.`;
+  preview.textContent = total > 0 ? `${n} parcelas de ${formatCurrency(total / n)}.` : `${n} parcelas. Informe o valor para calcular.`;
 }
 
 function escapeHtml(text) {
@@ -293,13 +238,10 @@ function escapeHtml(text) {
   div.textContent = text == null ? '' : String(text);
   return div.innerHTML;
 }
-
 function buildAbsoluteUrl(path = '') {
   const origin = window.location.origin.replace(/\/$/, '');
-  if (!path || path === '/') return `${origin}/`;
   return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
 }
-
 function buildEmptyState(title, subtitle = '', icon = '!') {
   return `
     <div class="empty-state">
@@ -310,1480 +252,612 @@ function buildEmptyState(title, subtitle = '', icon = '!') {
   `;
 }
 
+// --- DASHBOARD ---
 async function loadDashboard() {
   const grid = document.getElementById('kpi-grid');
   if (!grid) return;
-
   grid.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando resumo...</div>';
-
   try {
     const data = await apiGet('/dashboard/resumo');
     const saldo = data.saldoAtual || 0;
     const saldoColor = saldo >= 0 ? 'emerald' : 'red';
-    const saldoClass = saldo >= 0 ? 'text-success' : 'text-danger';
-
     window.currentDashboardData = { ...data, saldoAtual: saldo };
 
     grid.innerHTML = `
-      <div class="kpi-card" data-color="emerald" data-action="filter-mov" data-type="ENTRADA" title="Ver todas as entradas">
+      <div class="kpi-card" data-color="emerald" data-action="filter-mov" data-type="ENTRADA">
         <div class="kpi-label">📈 Total Entradas</div>
         <div class="kpi-value text-success">${formatCurrency(data.totalEntradas)}</div>
         <div class="kpi-hint">↗ Ver movimentações</div>
       </div>
-      <div class="kpi-card" data-color="red" data-action="filter-mov" data-type="SAIDA" title="Ver todas as saídas">
+      <div class="kpi-card" data-color="red" data-action="filter-mov" data-type="SAIDA">
         <div class="kpi-label">📉 Total Saídas</div>
         <div class="kpi-value text-danger">${formatCurrency(data.totalSaidas)}</div>
         <div class="kpi-hint">↗ Ver movimentações</div>
       </div>
-      <div class="kpi-card" data-color="${saldoColor}" data-action="show-saldo" title="Ver balanço geral">
+      <div class="kpi-card" data-color="${saldoColor}" data-action="show-saldo">
         <div class="kpi-label">💰 Saldo Atual</div>
-        <div class="kpi-value ${saldoClass}">${formatCurrency(saldo)}</div>
+        <div class="kpi-value ${saldo >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(saldo)}</div>
         <div class="kpi-hint">↗ Ver balanço</div>
       </div>
-      <div class="kpi-card" data-color="indigo" data-action="show-produtos" title="Ver catálogo de produtos">
+      <div class="kpi-card" data-color="indigo" data-action="show-produtos">
         <div class="kpi-label">📦 Produtos Ativos</div>
         <div class="kpi-value">${data.totalProdutosAtivos ?? 0}</div>
         <div class="kpi-hint">↗ Ver produtos</div>
       </div>
-      <div class="kpi-card" data-color="cyan" data-action="show-produtos" title="Ver inventário de estoque">
-        <div class="kpi-label">🏪 Itens em Estoque</div>
-        <div class="kpi-value">${(data.totalItensEmEstoque ?? 0).toLocaleString('pt-BR')}</div>
-        <div class="kpi-hint">↗ Ver estoque</div>
-      </div>
-      <div class="kpi-card" data-color="violet" data-action="show-produtos" title="Ver valor total do estoque">
-        <div class="kpi-label">💎 Valor do Estoque</div>
-        <div class="kpi-value">${formatCurrency(data.valorTotalEstoque)}</div>
-        <div class="kpi-hint">↗ Ver produtos</div>
-      </div>
-      <div class="kpi-card" data-color="amber" data-nav="movimentacoes" title="Ver todas as movimentações">
-        <div class="kpi-label">🔄 Movimentações</div>
-        <div class="kpi-value">${(data.totalMovimentacoes ?? 0).toLocaleString('pt-BR')}</div>
-        <div class="kpi-hint">↗ Ver todas</div>
-      </div>
     `;
 
-    // Attach robust listeners to each card
     grid.querySelectorAll('.kpi-card').forEach(card => {
       card.addEventListener('click', () => {
-        const { action, type, nav } = card.dataset;
-        if (action === 'filter-mov') {
-          navigateToMovimentacoesWithFilter(type);
-        } else if (action === 'show-saldo') {
-          showSaldoDrilldown();
-        } else if (action === 'show-produtos') {
-          showProdutosDrilldown();
-        } else if (nav) {
-          navigateTo(nav);
-        }
+        const { action, type } = card.dataset;
+        if (action === 'filter-mov') navigateToMovimentacoesWithFilter(type);
+        else if (action === 'show-saldo') showSaldoDrilldown();
+        else if (action === 'show-produtos') showProdutosDrilldown();
       });
     });
-    
-    // Asynchronously render charts using the dashboard payload and by fetching movimentacoes
+
     renderDashboardCharts(data);
-    
   } catch (err) {
     grid.innerHTML = buildEmptyState('Erro ao carregar dashboard', err.message);
-    showToast(`Erro ao carregar dashboard: ${err.message}`, 'error');
   }
 }
 
-// ─── Charting Logic ───
-let chartInstances = {};
-
-/**
- * Exibe um modal com o detalhamento das movimentações ao clicar em um gráfico.
- * @param {string} type - 'ENTRADA', 'SAIDA' ou uma data 'YYYY-MM-DD'
- * @param {string} title - Título para o modal
- */
-async function showChartDrilldown(type, title) {
-  openModal(title, `<div class="loading-overlay"><div class="spinner"></div> Filtrando dados...</div>`, '');
-  
-  try {
-    const allMovs = await apiGet('/movimentacoes');
-    let filtered = [];
-    
-    if (type === 'ENTRADA' || type === 'SAIDA') {
-      filtered = allMovs.filter(m => m.tipo === type);
-    } else {
-      filtered = allMovs.filter(m => m.data === type);
-    }
-
-    if (filtered.length === 0) {
-      document.getElementById('modal-body').innerHTML = buildEmptyState('Nenhuma movimentação encontrada', 'Nenhum registro para este critério.');
-      return;
-    }
-
-    filtered.sort((a,b) => new Date(b.data) - new Date(a.data));
-
-    const html = `
-      <div class="table-wrapper">
-        <table style="min-width: 100%;">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Descrição</th>
-              <th>Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${filtered.map(m => `
-              <tr>
-                <td style="font-size: 11px;">${formatDate(m.data)}</td>
-                <td>
-                  <div style="font-weight:600; font-size: 13px;">${escapeHtml(m.descricao)}</div>
-                  <div style="font-size: 11px; color: var(--text-muted)">${escapeHtml(m.categoria)}</div>
-                </td>
-                <td class="${m.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'}" style="font-weight:700; text-align:right">
-                  ${m.tipo === 'ENTRADA' ? '+' : '-'}${formatCurrency(m.valor)}
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
-    
-    document.getElementById('modal-body').innerHTML = html;
-    document.getElementById('modal-footer').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">Fechar</button>`;
-    
-  } catch (err) {
-    document.getElementById('modal-body').innerHTML = buildEmptyState('Erro ao carregar detalhes', err.message);
-  }
-}
-
-/**
- * Exibe um detalhamento resumido dos produtos no modal.
- */
-async function showProdutosDrilldown() {
-  openModal('Resumo do Catálogo', `<div class="loading-overlay"><div class="spinner"></div> Carregando lista...</div>`, '');
-  
-  try {
-    const produtos = await apiGet('/produtos');
-    const ativos = produtos.filter(p => p.ativo);
-
-    if (produtos.length === 0) {
-      document.getElementById('modal-body').innerHTML = buildEmptyState('Nenhum produto cadastrado', 'O catálogo está vazio.');
-      return;
-    }
-
-    const html = `
-      <div style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary);">
-        Exibindo <b>${ativos.length}</b> produtos ativos de <b>${produtos.length}</b> totais.
-      </div>
-      <div class="table-wrapper">
-        <table style="min-width: 100%;">
-          <thead>
-            <tr>
-              <th>Produto</th>
-              <th>Preço</th>
-              <th>Estoque</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${produtos.slice(0, 50).map(p => `
-              <tr>
-                <td>
-                  <div style="font-weight:600; font-size: 13px;">${escapeHtml(p.nome)}</div>
-                  <div style="font-size: 11px; color: var(--text-muted)">${escapeHtml(p.categoria)} ${p.ativo ? '' : '<span class="text-danger">(Inativo)</span>'}</div>
-                </td>
-                <td style="font-weight:600">${formatCurrency(p.preco)}</td>
-                <td>
-                  <span class="badge ${p.estoque < 5 ? 'badge-danger' : 'badge-neutral'}">${p.estoque}</span>
-                </td>
-              </tr>
-            `).join('')}
-            ${produtos.length > 50 ? '<tr><td colspan="3" style="text-align:center; padding: 10px; font-size:11px; color:var(--text-muted)">E mais ${produtos.length - 50} itens...</td></tr>' : ''}
-          </tbody>
-        </table>
-      </div>
-    `;
-    
-    document.getElementById('modal-body').innerHTML = html;
-    document.getElementById('modal-footer').innerHTML = `
-      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
-      <button class="btn btn-primary" onclick="navigateTo('produtos'); closeModal();">Gerenciar Produtos</button>
-    `;
-  } catch (err) {
-    document.getElementById('modal-body').innerHTML = buildEmptyState('Erro ao carregar produtos', err.message);
-  }
-}
-
-/**
- * Exibe o detalhamento do saldo atual.
- */
 async function showSaldoDrilldown() {
-  const dashData = window.currentDashboardData;
-  if (!dashData) return;
-
+  const d = window.currentDashboardData;
+  if (!d) return;
   const html = `
     <div style="display: grid; gap: 16px;">
       <div class="card" style="padding: 16px; background: rgba(52, 211, 153, 0.05); border-color: var(--accent-success);">
-        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Total Entradas</div>
-        <div style="font-size: 20px; font-weight: 800; color: var(--accent-success);">${formatCurrency(dashData.totalEntradas)}</div>
+        <div style="font-size: 12px; color: var(--text-muted);">TOTAL ENTRADAS</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--accent-success);">${formatCurrency(d.totalEntradas)}</div>
       </div>
       <div class="card" style="padding: 16px; background: rgba(248, 113, 113, 0.05); border-color: var(--accent-danger);">
-        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Total Saídas</div>
-        <div style="font-size: 20px; font-weight: 800; color: var(--accent-danger);">${formatCurrency(dashData.totalSaidas)}</div>
+        <div style="font-size: 12px; color: var(--text-muted);">TOTAL SAÍDAS</div>
+        <div style="font-size: 20px; font-weight: 800; color: var(--accent-danger);">${formatCurrency(d.totalSaidas)}</div>
       </div>
-      <div style="padding: 16px; text-align: center; border-top: 1px solid var(--border); margin-top: 8px;">
-        <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;">Saldo Final Disponível</div>
-        <div style="font-size: 28px; font-weight: 800; color: ${dashData.saldoAtual >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)'}">${formatCurrency(dashData.saldoAtual)}</div>
+      <div style="text-align: center; padding-top: 8px; border-top: 1px solid var(--border);">
+        <div style="font-size: 14px; color: var(--text-secondary);">SALDO FINAL</div>
+        <div style="font-size: 28px; font-weight: 800; color: ${d.saldoAtual >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)'}">${formatCurrency(d.saldoAtual)}</div>
       </div>
     </div>
   `;
-  
-  openModal('Balanço Geral', html, `
-    <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
-    <button class="btn btn-primary" onclick="navigateTo('movimentacoes'); closeModal();">Ver Movimentações</button>
-  `);
+  openModal('Balanço Geral', html, '<button class="btn btn-primary" onclick="closeModal()">Fechar</button>');
 }
 
+async function showProdutosDrilldown() {
+  openModal('Resumo do Catálogo', '<div class="loading-overlay">Carregando...</div>', '');
+  try {
+    const produtos = await apiGet('/produtos');
+    const html = `
+      <div class="table-wrapper">
+        <table style="width: 100%;">
+          <thead><tr><th>Produto</th><th>Preço</th><th>Estoque</th></tr></thead>
+          <tbody>
+            ${produtos.slice(0, 30).map(p => `
+              <tr>
+                <td><b>${escapeHtml(p.nome)}</b><br><small>${escapeHtml(p.categoria)}</small></td>
+                <td>${formatCurrency(p.preco)}</td>
+                <td><span class="badge ${p.estoque < 5 ? 'badge-danger' : 'badge-neutral'}">${p.estoque}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    document.getElementById('modal-body').innerHTML = html;
+    document.getElementById('modal-footer').innerHTML = '<button class="btn btn-primary" onclick="closeModal()">Fechar</button>';
+  } catch (err) { document.getElementById('modal-body').innerHTML = 'Erro ao carregar.'; }
+}
+
+let chartInstances = {};
 async function renderDashboardCharts(dashData) {
   if (typeof Chart === 'undefined') return;
-  Chart.defaults.color = '#94A3B8';
-  Chart.defaults.font.family = "'Outfit', sans-serif";
   
-  // 1. Balance Doughnut Chart
+  // Gráfico Doughnut (Balanço Atual)
   const ctxBalance = document.getElementById('balanceChart');
   if (ctxBalance) {
     if (chartInstances['balance']) chartInstances['balance'].destroy();
     chartInstances['balance'] = new Chart(ctxBalance, {
       type: 'doughnut',
       data: {
-        labels: ['Lucro/Entradas', 'Despesas/Saídas'],
+        labels: ['Entradas', 'Saídas'],
         datasets: [{
           data: [dashData.totalEntradas || 0, dashData.totalSaidas || 0],
-          backgroundColor: [
-            'rgba(52, 211, 153, 0.8)', // accent-success
-            'rgba(248, 113, 113, 0.8)' // accent-danger
-          ],
-          borderColor: '#141722',
-          borderWidth: 6,
-          hoverOffset: 15
+          backgroundColor: ['#10b981', '#ef4444'],
+          borderWidth: 0
         }]
+      },
+      options: { cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+
+  // Gráfico Line (Evolução Financeira)
+  const ctxFinancial = document.getElementById('financialChart');
+  if (ctxFinancial) {
+    if (chartInstances['financial']) chartInstances['financial'].destroy();
+    
+    // Simulação ou uso de dados reais de evolução (se houver no dashData)
+    // Se a API não retorna o histórico detalhado, criamos uma projeção visual simples
+    const labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul'];
+    const dataEntradas = [0, 0, 0, 0, 0, 0, dashData.totalEntradas || 0];
+    const dataSaidas = [0, 0, 0, 0, 0, 0, dashData.totalSaidas || 0];
+    
+    chartInstances['financial'] = new Chart(ctxFinancial, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Receitas',
+            data: dataEntradas,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4,
+            fill: true
+          },
+          {
+            label: 'Despesas',
+            data: dataSaidas,
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            tension: 0.4,
+            fill: true
+          }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '75%',
-        plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 20 } }
-        },
-        onClick: (event, elements) => {
-          if (elements.length > 0) {
-            const index = elements[0].index;
-            const type = index === 0 ? 'ENTRADA' : 'SAIDA';
-            navigateToMovimentacoesWithFilter(type);
-          }
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          y: { beginAtZero: true, display: false },
+          x: { grid: { display: false } }
         }
       }
     });
   }
-
-  // 2. Financial Pipeline Line Chart
-  const ctxFinancial = document.getElementById('financialChart');
-  if (ctxFinancial) {
-    try {
-      const movimentacoes = await apiGet('/movimentacoes');
-      // Aggregate by Date
-      const timelineMap = {};
-      movimentacoes.forEach(mov => {
-        if (!timelineMap[mov.data]) timelineMap[mov.data] = { entrada: 0, saida: 0 };
-        if (mov.tipo === 'ENTRADA') timelineMap[mov.data].entrada += mov.valor;
-        else timelineMap[mov.data].saida += mov.valor;
-      });
-
-      // Sort dates
-      const dates = Object.keys(timelineMap).sort();
-      const entradasData = dates.map(d => timelineMap[d].entrada);
-      const saidasData = dates.map(d => timelineMap[d].saida);
-
-      if (chartInstances['financial']) chartInstances['financial'].destroy();
-      chartInstances['financial'] = new Chart(ctxFinancial, {
-        type: 'line',
-        data: {
-          labels: dates.map(formatDate),
-          datasets: [
-            {
-              label: 'Entradas Diárias',
-              data: entradasData,
-              borderColor: '#38BDF8', // accent-primary
-              backgroundColor: 'rgba(56, 189, 248, 0.1)',
-              borderWidth: 3,
-              fill: true,
-              tension: 0.4
-            },
-            {
-              label: 'Saídas Diárias',
-              data: saidasData,
-              borderColor: '#F87171',
-              backgroundColor: 'rgba(248, 113, 113, 0.05)',
-              borderWidth: 2,
-              fill: true,
-              tension: 0.4
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          scales: {
-            x: { grid: { color: 'rgba(255,255,255,0.05)' } },
-            y: { grid: { color: 'rgba(255,255,255,0.05)' } }
-          },
-          plugins: { 
-            legend: { position: 'top' },
-            tooltip: {
-              callbacks: {
-                label: (context) => `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`
-              }
-            }
-          },
-          onClick: (event, elements) => {
-            if (elements.length > 0) {
-              const index = elements[0].index;
-              const rawDate = dates[index];
-              showChartDrilldown(rawDate, `Movimentações em ${formatDate(rawDate)}`);
-            }
-          }
-        }
-      });
-    } catch (e) {
-      console.error('Failed to load chart timeline data', e);
-    }
-  }
 }
 
+// --- PRODUTOS ---
 async function loadProdutos() {
   const tbody = document.getElementById('produtos-tbody');
   if (!tbody) return;
-
-  tbody.innerHTML = '<tr><td colspan="8"><div class="loading-overlay"><div class="spinner"></div> Carregando...</div></td></tr>';
-
+  tbody.innerHTML = '<tr><td colspan="8">Carregando...</td></tr>';
   try {
-    const produtos = await apiGet('/produtos');
+    let produtos = await apiGet('/produtos');
+    // Filtrar apenas produtos ativos para que o "Excluir" realmente faça o item sumir da tela
+    produtos = produtos.filter(p => p.ativo);
+    
     document.getElementById('produtos-count').textContent = `${produtos.length} itens`;
-
-    if (produtos.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8">${buildEmptyState('Nenhum produto cadastrado', 'Clique em "Novo Produto" para começar', '[]')}</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = produtos.map(produto => {
-      const actionButtons = canWriteProducts()
-        ? `
-          <button class="btn btn-ghost btn-sm" onclick="openProdutoModal(${produto.id})">Editar</button>
-          <button class="btn btn-ghost btn-sm" onclick="deleteProduto(${produto.id})">Excluir</button>
-        `
-        : '<span class="muted">Catálogo administrado</span>';
-
-      return `
+    const btnNovo = document.getElementById('btn-novo-produto');
+    if (btnNovo) btnNovo.style.display = isAdmin() ? 'inline-block' : 'none';
+    
+    tbody.innerHTML = produtos.map(p => `
       <tr>
-        <td><span class="badge badge-neutral">#${produto.id}</span></td>
-        <td class="td-name">${escapeHtml(produto.nome)}</td>
-        <td>${escapeHtml(produto.categoria)}</td>
-        <td>${formatCurrency(produto.custo)}</td>
-        <td><strong>${formatCurrency(produto.preco)}</strong></td>
-        <td>${produto.estoque}</td>
-        <td>${produto.ativo
-          ? '<span class="badge badge-success">ATIVO</span>'
-          : '<span class="badge badge-danger">INATIVO</span>'}</td>
-        <td class="td-actions">
-          ${actionButtons}
+        <td>#${p.id}</td>
+        <td><b>${escapeHtml(p.nome)}</b></td>
+        <td>${escapeHtml(p.categoria)}</td>
+        <td>${formatCurrency(p.custo)}</td>
+        <td>${formatCurrency(p.preco)}</td>
+        <td>${p.estoque}</td>
+        <td><span class="badge ${p.ativo ? 'badge-success' : 'badge-danger'}">${p.ativo ? 'ATIVO' : 'INATIVO'}</span></td>
+        <td style="text-align:right">
+          ${isAdmin() ? `
+          <div style="display:flex; gap:4px; justify-content:flex-end;">
+            <button class="btn btn-ghost btn-sm" onclick="openProdutoModal(${p.id})">Editar</button>
+            <button class="btn btn-ghost btn-sm text-danger" onclick="deleteProduto(${p.id})">Excluir</button>
+          </div>
+          ` : `
+          <div style="display:flex; gap:4px; justify-content:flex-end;">
+             <span class="badge badge-neutral" style="opacity:0.7">Apenas Visualização</span>
+          </div>
+          `}
         </td>
       </tr>
-    `;
-    }).join('');
-  } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="8">${buildEmptyState('Falha ao carregar produtos', err.message)}</td></tr>`;
-    showToast(`Erro ao carregar produtos: ${err.message}`, 'error');
-  }
+    `).join('');
+  } catch (err) { tbody.innerHTML = 'Erro ao carregar.'; }
 }
 
 function openProdutoModal(id) {
-  if (!canWriteProducts()) {
-    showToast('Produtos são administrados por ADMIN ou SUPERUSER.', 'error');
-    return;
-  }
-
-  const isEdit = Boolean(id);
-
+  const isEdit = !!id;
   const body = `
     <input type="hidden" id="prod-id" value="${id || ''}">
-    <div class="form-group">
-      <label class="form-label">Nome</label>
-      <input type="text" id="prod-nome" class="form-input" placeholder="Ex: Caneta Azul" maxlength="120">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Categoria</label>
-      <input type="text" id="prod-categoria" class="form-input" placeholder="Ex: Material Escolar" maxlength="80">
+    <div class="form-group"><label class="form-label">Nome</label><input type="text" id="prod-nome" class="form-input"></div>
+    <div class="form-group"><label class="form-label">Categoria</label><input type="text" id="prod-categoria" class="form-input"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Custo</label><input type="number" id="prod-custo" class="form-input" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Preço</label><input type="number" id="prod-preco" class="form-input" step="0.01"></div>
     </div>
     <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Custo (R$)</label>
-        <input type="number" id="prod-custo" class="form-input" step="0.01" min="0" placeholder="0.00">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Preço (R$)</label>
-        <input type="number" id="prod-preco" class="form-input" step="0.01" min="0" placeholder="0.00">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Estoque</label>
-        <input type="number" id="prod-estoque" class="form-input" min="0" placeholder="0">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Ativo</label>
-        <select id="prod-ativo" class="form-select">
-          <option value="true">Sim</option>
-          <option value="false">Não</option>
-        </select>
-      </div>
+      <div class="form-group"><label class="form-label">Estoque</label><input type="number" id="prod-estoque" class="form-input"></div>
+      <div class="form-group"><label class="form-label">Ativo</label><select id="prod-ativo" class="form-select"><option value="true">Sim</option><option value="false">Não</option></select></div>
     </div>
   `;
-
-  const footer = `
-    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-    <button class="btn btn-success" onclick="saveProduto()">${isEdit ? 'Atualizar' : 'Criar'}</button>
-  `;
-
-  openModal(isEdit ? 'Editar Produto' : 'Novo Produto', body, footer);
-
+  openModal(isEdit ? 'Editar Produto' : 'Novo Produto', body, `<button class="btn btn-primary" onclick="saveProduto()">Salvar</button>`);
   if (isEdit) {
-    apiGet(`/produtos/${id}`)
-      .then(produto => {
-        document.getElementById('prod-nome').value = produto.nome;
-        document.getElementById('prod-categoria').value = produto.categoria;
-        document.getElementById('prod-custo').value = produto.custo;
-        document.getElementById('prod-preco').value = produto.preco;
-        document.getElementById('prod-estoque').value = produto.estoque;
-        document.getElementById('prod-ativo').value = String(produto.ativo);
-      })
-      .catch(err => showToast(`Erro ao carregar produto: ${err.message}`, 'error'));
+    apiGet(`/produtos/${id}`).then(p => {
+      document.getElementById('prod-nome').value = p.nome;
+      document.getElementById('prod-categoria').value = p.categoria;
+      document.getElementById('prod-custo').value = p.custo;
+      document.getElementById('prod-preco').value = p.preco;
+      document.getElementById('prod-estoque').value = p.estoque;
+      document.getElementById('prod-ativo').value = String(p.ativo);
+    });
   }
 }
 
 async function saveProduto() {
-  if (!canWriteProducts()) {
-    showToast('Produtos são administrados por ADMIN ou SUPERUSER.', 'error');
-    return;
-  }
-
   const id = document.getElementById('prod-id').value;
   const data = {
-    nome: document.getElementById('prod-nome').value.trim(),
-    categoria: document.getElementById('prod-categoria').value.trim(),
+    nome: document.getElementById('prod-nome').value,
+    categoria: document.getElementById('prod-categoria').value,
     custo: parseFloat(document.getElementById('prod-custo').value) || 0,
     preco: parseFloat(document.getElementById('prod-preco').value) || 0,
-    estoque: parseInt(document.getElementById('prod-estoque').value, 10) || 0,
+    estoque: parseInt(document.getElementById('prod-estoque').value) || 0,
     ativo: document.getElementById('prod-ativo').value === 'true'
   };
-
-  if (!data.nome || !data.categoria) {
-    showToast('Preencha nome e categoria', 'error');
-    return;
-  }
-
   try {
-    if (id) {
-      await apiPut(`/produtos/${id}`, data);
-      showToast('Produto atualizado com sucesso', 'success');
-    } else {
-      await apiPost('/produtos', data);
-      showToast('Produto criado com sucesso', 'success');
-    }
-
-    closeModal();
-    loadProdutos();
-    loadDashboard();
+    if (id) await apiPut(`/produtos/${id}`, data);
+    else await apiPost('/produtos', data);
+    closeModal(); loadProdutos(); loadDashboard();
   } catch (err) {
-    showToast(`Erro: ${err.message}`, 'error');
+    showToast(err.message, 'error');
   }
 }
 
 async function deleteProduto(id) {
-  if (!canWriteProducts()) {
-    showToast('Produtos são administrados por ADMIN ou SUPERUSER.', 'error');
-    return;
-  }
-
   if (!confirm('Tem certeza que deseja excluir este produto?')) return;
-
   try {
     await apiDelete(`/produtos/${id}`);
-    showToast('Produto excluído', 'success');
+    showToast('Produto desativado com sucesso.', 'success');
     loadProdutos();
     loadDashboard();
   } catch (err) {
-    showToast(`Erro ao excluir: ${err.message}`, 'error');
+    showToast(err.message, 'error');
   }
 }
+
+// --- MOVIMENTACOES ---
 async function loadMovimentacoes() {
   const tbody = document.getElementById('movimentacoes-tbody');
-  const countBadge = document.getElementById('movimentacoes-count');
   if (!tbody) return;
-
-  tbody.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando...</div>';
-
+  tbody.innerHTML = 'Carregando...';
   try {
-    let movimentacoes = await apiGet('/movimentacoes');
-    
-    // Aplicar filtro se existir
-    if (window.movTypeFilter) {
-      movimentacoes = movimentacoes.filter(m => m.tipo === window.movTypeFilter);
-    }
-
-    if (countBadge) countBadge.textContent = `${movimentacoes.length} itens`;
-
-    if (movimentacoes.length === 0) {
-      tbody.innerHTML = buildEmptyState('Nenhuma movimentação encontrada', window.movTypeFilter ? 'Tente limpar o filtro para ver tudo.' : 'Clique em "Nova Movimentação" para começar', '$');
-      return;
-    }
-
-    // Sort globally
-    movimentacoes.sort((a, b) => {
-      const dateA = new Date(a.data).getTime() || 0;
-      const dateB = new Date(b.data).getTime() || 0;
-      if (dateB !== dateA) return dateB - dateA;
-      return (b.id || 0) - (a.id || 0);
-    });
-
-    let html = '';
-    
-    // Se estiver filtrado, adicionar aviso e botão de limpar
-    if (window.movTypeFilter) {
-      const label = window.movTypeFilter === 'ENTRADA' ? 'Entradas' : 'Saídas';
-      html += `
-        <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; background: rgba(56, 189, 248, 0.1); padding: 12px 18px; border-radius: var(--radius-md); border: 1px solid var(--border-hover);">
-          <div style="font-size: 13px; font-weight: 600;">
-            <span class="text-primary">Filtro Ativo:</span> Mostrando apenas <b>${label}</b>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="window.movTypeFilter = null; loadMovimentacoes();" style="font-size: 11px;">Limpar Filtro</button>
-        </div>
-      `;
-    }
-
-    html += movimentacoes.map(movimentacao => {
-      const isEntrada = movimentacao.tipo === 'ENTRADA';
-      const iconClass = isEntrada ? 'entrada' : 'saida';
-      const symbol = isEntrada ? '+' : '-';
-      const colorClass = isEntrada ? 'text-success' : 'text-danger';
-      const actionButtons = canWriteMovimentacoes()
-        ? `
-                <button class="btn btn-ghost btn-sm" onclick="openMovimentacaoModal(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px;">Editar</button>
-                <button class="btn btn-ghost btn-sm" onclick="deleteMovimentacao(${movimentacao.id})" style="padding: 4px 8px; font-size: 11px; color: var(--accent-danger);">Excluir</button>
-        `
-        : '<span class="muted">Somente leitura</span>';
-
-      return `
-        <div class="timeline-item">
-          <div class="timeline-icon ${iconClass}">${symbol}</div>
-          <div class="timeline-content" style="display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-md);">
-            <div style="flex: 1;">
-              <div class="timeline-date">${formatDate(movimentacao.data)} &bull; ${escapeHtml(movimentacao.categoria)}</div>
-              <div class="timeline-title">${escapeHtml(movimentacao.descricao)}</div>
-              <div class="timeline-details">
-                Cliente: <b>${escapeHtml(movimentacao.cliente)}</b> &nbsp;|&nbsp; 
-                Vendedor: <b>${escapeHtml(movimentacao.vendedorNome || movimentacao.vendedorUsername || 'Nao informado')}</b> &nbsp;|&nbsp;
-                Qtd: <b>${movimentacao.quantidade || 1}</b> &nbsp;|&nbsp;
-                ${escapeHtml(formatTipoPagamento(movimentacao.tipoPagamento))} 
-                (${escapeHtml(formatParcelas(movimentacao.quantidadeParcelas, movimentacao.valor))})
-              </div>
+    let movs = await apiGet('/movimentacoes');
+    if (window.movTypeFilter) movs = movs.filter(m => m.tipo === window.movTypeFilter);
+    movs.sort((a,b) => b.id - a.id);
+    tbody.innerHTML = movs.map(m => `
+      <div class="timeline-item">
+        <div class="timeline-icon ${m.tipo.toLowerCase()}">${m.tipo === 'ENTRADA' ? '+' : '-'}</div>
+        <div class="timeline-content" style="border: 1px solid var(--border); padding: 12px; border-radius: 8px;">
+          <div style="display:flex; justify-content:space-between;">
+            <div>
+              <div class="timeline-date">${formatDate(m.data)} &bull; ${escapeHtml(m.categoria)}</div>
+              <div class="timeline-title">${escapeHtml(m.descricao)}</div>
+              <small>Cliente: ${escapeHtml(m.cliente)} | Vendedor: ${escapeHtml(m.vendedorNome || 'Sistema')}</small>
             </div>
-            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-              <strong class="${colorClass}" style="font-size: 16px;">${formatCurrency(movimentacao.valor)}</strong>
-              <div style="display: flex; gap: 4px;">
-                ${actionButtons}
-              </div>
+            <div style="text-align:right">
+              <strong class="${m.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'}">${formatCurrency(m.valor)}</strong>
+              <br>
+              ${isAdmin() ? `<button class="btn btn-ghost btn-sm" onclick="deleteMovimentacao(${m.id})">Excluir</button>` : ''}
             </div>
           </div>
         </div>
-      `;
-    }).join('');
-    
-    tbody.innerHTML = html;
-  } catch (err) {
-    tbody.innerHTML = buildEmptyState('Falha ao carregar movimentações', err.message);
-    showToast(`Erro ao carregar movimentações: ${err.message}`, 'error');
-  }
+      </div>
+    `).join('');
+  } catch (err) { tbody.innerHTML = 'Erro ao carregar.'; }
 }
 
-async function openMovimentacaoModal(id) {
-  if (!canWriteMovimentacoes()) {
-    showToast('Seu perfil permite apenas leitura de movimentacoes.', 'error');
-    return;
-  }
-
-  const isEdit = Boolean(id);
-  const today = new Date().toISOString().split('T')[0];
-
-  // Busca produtos e clientes para os seletores
-  let produtos = [];
-  let clientes = [];
-  try {
-    produtos = await apiGet('/produtos');
-    produtos = produtos.filter(p => p.ativo !== false); // Inclui null ou true
-  } catch (err) {
-    console.warn('Falha ao carregar produtos:', err);
-  }
-  try {
-    clientes = await apiGet('/clientes');
-  } catch (err) {
-    console.warn('Falha ao carregar clientes:', err);
-  }
-
+function openMovimentacaoModal() {
   const body = `
-    <input type="hidden" id="mov-id" value="${id || ''}">
+    <div class="form-group"><label class="form-label">Tipo</label><select id="mov-tipo" class="form-select"><option value="ENTRADA">Entrada</option><option value="SAIDA">Saída</option></select></div>
+    <div class="form-group"><label class="form-label">Cliente</label><input type="text" id="mov-cliente" class="form-input"></div>
+    <div class="form-group"><label class="form-label">Descrição</label><input type="text" id="mov-descricao" class="form-input"></div>
     <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Tipo</label>
-        <select id="mov-tipo" class="form-select">
-          <option value="ENTRADA">Entrada (Venda/Receita)</option>
-          <option value="SAIDA">Saída (Compra/Despesa)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Produto (Baixa no estoque)</label>
-        <select id="mov-produto-id-unique" class="form-select" onchange="onMovimentacaoProdutoChange(this)">
-          <option value="">-- Selecione um produto --</option>
-          ${produtos.map(p => `<option value="${p.id}" data-preco="${p.preco}" data-nome="${p.nome}">${escapeHtml(p.nome)} (Est: ${p.estoque})</option>`).join('')}
-        </select>
-      </div>
+      <div class="form-group"><label class="form-label">Valor</label><input type="number" id="mov-valor" class="form-input" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Data</label><input type="date" id="mov-data" class="form-input" value="${new Date().toISOString().split('T')[0]}"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Cliente (Opcional)</label>
-        <select id="mov-cliente-id" class="form-select" onchange="onMovimentacaoClienteChange(this)">
-          <option value="">-- Venda Avulsa / Ignorar --</option>
-          ${clientes.map(c => `<option value="${c.id}" data-nome="${c.nome}">${escapeHtml(c.nome)} (${c.documento || 'Sem Documento'})</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Nome p/ Recibo / Avulso</label>
-        <input type="text" id="mov-cliente" class="form-input" placeholder="Ex: Cliente XPTO" maxlength="120">
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Descrição</label>
-      <input type="text" id="mov-descricao" class="form-input" placeholder="Ex: Venda do dia" maxlength="160">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Quantidade</label>
-        <input type="number" id="mov-quantidade" class="form-input" min="1" value="1" oninput="onMovimentacaoQuantidadeChange()">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Valor Total (R$)</label>
-        <input type="number" id="mov-valor" class="form-input" step="0.01" min="0" placeholder="0.00" oninput="updateMovimentacaoParcelaPreview()">
-      </div>
-    </div>
-      <div class="form-group">
-        <label class="form-label">Data</label>
-        <input type="date" id="mov-data" class="form-input" value="${today}">
-      </div>
-    <div class="form-group">
-      <label class="form-label">Categoria</label>
-      <select id="mov-categoria" class="form-select">
-        <optgroup label="Receitas">
-          <option value="Venda de Produto">Venda de Produto</option>
-          <option value="Prestação de Serviço">Prestação de Serviço</option>
-          <option value="Investimento">Investimento</option>
-          <option value="Outras Receitas">Outras Receitas</option>
-        </optgroup>
-        <optgroup label="Despesas">
-          <option value="Compra de Estoque">Compra de Estoque</option>
-          <option value="Aluguel">Aluguel</option>
-          <option value="Salário">Salário</option>
-          <option value="Marketing">Marketing</option>
-          <option value="Impostos">Impostos</option>
-          <option value="Outras Despesas">Outras Despesas</option>
-        </optgroup>
-      </select>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Tipo de pagamento</label>
-        <select id="mov-tipo-pagamento" class="form-select" onchange="syncMovimentacaoPagamentoFields()">
-          <option value="AVISTA">À vista</option>
-          <option value="PARCELADO">Parcelado</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Parcelas</label>
-        <input type="number" id="mov-quantidade-parcelas" class="form-input" min="1" max="360" value="1" oninput="updateMovimentacaoParcelaPreview()">
-        <div class="form-hint" id="mov-parcelas-preview">Pagamento em parcela única.</div>
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Data do primeiro vencimento</label>
-      <input type="date" id="mov-primeiro-vencimento" class="form-input" value="${today}">
-    </div>
+    <div class="form-group"><label class="form-label">Categoria</label><input type="text" id="mov-categoria" class="form-input"></div>
   `;
-
-  const footer = `
-    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-    <button class="btn btn-success" onclick="saveMovimentacao()">${isEdit ? 'Atualizar' : 'Criar'}</button>
-  `;
-
-  openModal(isEdit ? 'Editar Movimentação' : 'Nova Movimentação', body, footer);
-  syncMovimentacaoPagamentoFields();
-
-  if (isEdit) {
-    try {
-      const movimentacao = await apiGet(`/movimentacoes/${id}`);
-      document.getElementById('mov-tipo').value = movimentacao.tipo;
-      document.getElementById('mov-cliente').value = movimentacao.cliente;
-      document.getElementById('mov-descricao').value = movimentacao.descricao;
-      document.getElementById('mov-valor').value = movimentacao.valor;
-      document.getElementById('mov-data').value = movimentacao.data;
-      document.getElementById('mov-categoria').value = movimentacao.categoria;
-      document.getElementById('mov-tipo-pagamento').value = movimentacao.tipoPagamento;
-      document.getElementById('mov-quantidade-parcelas').value = movimentacao.quantidadeParcelas;
-      document.getElementById('mov-primeiro-vencimento').value = movimentacao.dataPrimeiroVencimento;
-      document.getElementById('mov-quantidade').value = movimentacao.quantidade || 1;
-      if (movimentacao.produtoId) {
-        document.getElementById('mov-produto-id').value = movimentacao.produtoId;
-      }
-      if (movimentacao.clienteId) {
-        document.getElementById('mov-cliente-id').value = movimentacao.clienteId;
-      }
-      syncMovimentacaoPagamentoFields();
-    } catch (err) {
-      showToast(`Erro ao carregar movimentação: ${err.message}`, 'error');
-    }
-  }
-}
-
-function onMovimentacaoProdutoChange(select) {
-  const selectedOption = select.options[select.selectedIndex];
-  if (!selectedOption || !selectedOption.value) return;
-
-  const preco = selectedOption.dataset.preco;
-  const nome = selectedOption.dataset.nome;
-
-  const descEl = document.getElementById('mov-descricao');
-  const valorEl = document.getElementById('mov-valor');
-  const tipoEl = document.getElementById('mov-tipo');
-  const catEl = document.getElementById('mov-categoria');
-  const qtdEl = document.getElementById('mov-quantidade');
-
-  descEl.value = `Venda: ${nome}`;
-  if (qtdEl) qtdEl.value = 1;
-  valorEl.value = preco;
-  
-  if (tipoEl) tipoEl.value = 'ENTRADA';
-  if (catEl) catEl.value = 'Venda de Produto';
-  
-  updateMovimentacaoParcelaPreview();
-}
-
-function onMovimentacaoClienteChange(select) {
-  const selectedOption = select.options[select.selectedIndex];
-  const cliInput = document.getElementById('mov-cliente');
-  if (selectedOption && selectedOption.value) {
-    cliInput.value = selectedOption.dataset.nome;
-    cliInput.disabled = true;
-  } else {
-    cliInput.value = '';
-    cliInput.disabled = false;
-  }
-}
-
-function onMovimentacaoQuantidadeChange() {
-  const select = document.getElementById('mov-produto-id-unique');
-  const selectedOption = select.options[select.selectedIndex];
-  const qtdEl = document.getElementById('mov-quantidade');
-  const valorEl = document.getElementById('mov-valor');
-
-  if (selectedOption && selectedOption.value && qtdEl && valorEl) {
-    const precoUnitario = parseFloat(selectedOption.dataset.preco) || 0;
-    const quantidade = parseInt(qtdEl.value, 10) || 1;
-    valorEl.value = (precoUnitario * quantidade).toFixed(2);
-    updateMovimentacaoParcelaPreview();
-  }
-}
-
-function syncMovimentacaoPagamentoFields() {
-  const tipoPagamento = document.getElementById('mov-tipo-pagamento');
-  const quantidadeParcelas = document.getElementById('mov-quantidade-parcelas');
-  if (!tipoPagamento || !quantidadeParcelas) return;
-
-  if (tipoPagamento.value === 'AVISTA') {
-    quantidadeParcelas.value = '1';
-    quantidadeParcelas.disabled = true;
-    quantidadeParcelas.min = '1';
-    updateMovimentacaoParcelaPreview();
-    return;
-  }
-
-  quantidadeParcelas.disabled = false;
-  quantidadeParcelas.min = '2';
-  if ((parseInt(quantidadeParcelas.value, 10) || 0) < 2) {
-    quantidadeParcelas.value = '2';
-  }
-
-  updateMovimentacaoParcelaPreview();
+  openModal('Nova Movimentação', body, `<button class="btn btn-primary" onclick="saveMovimentacao()">Salvar</button>`);
 }
 
 async function saveMovimentacao() {
-  if (!canWriteMovimentacoes()) {
-    showToast('Seu perfil permite apenas leitura de movimentacoes.', 'error');
-    return;
-  }
-
-  const id = document.getElementById('mov-id').value;
   const data = {
     tipo: document.getElementById('mov-tipo').value,
-    cliente: document.getElementById('mov-cliente').value.trim(),
-    descricao: document.getElementById('mov-descricao').value.trim(),
+    cliente: document.getElementById('mov-cliente').value,
+    descricao: document.getElementById('mov-descricao').value,
     valor: parseFloat(document.getElementById('mov-valor').value) || 0,
     data: document.getElementById('mov-data').value,
-    categoria: document.getElementById('mov-categoria').value.trim(),
-    tipoPagamento: document.getElementById('mov-tipo-pagamento').value,
-    quantidadeParcelas: parseInt(document.getElementById('mov-quantidade-parcelas').value, 10) || 1,
-    dataPrimeiroVencimento: document.getElementById('mov-primeiro-vencimento').value,
-    produtoId: parseInt(document.getElementById('mov-produto-id-unique').value, 10) || null,
-    quantidade: parseInt(document.getElementById('mov-quantidade').value, 10) || 1,
-    clienteId: document.getElementById('mov-cliente-id').value || null
+    categoria: document.getElementById('mov-categoria').value,
+    tipoPagamento: 'AVISTA',
+    quantidadeParcelas: 1
   };
-
-  if (data.tipoPagamento === 'AVISTA') {
-    data.quantidadeParcelas = 1;
-  }
-
-  if (!data.cliente || !data.descricao || !data.categoria || !data.data) {
-    showToast('Preencha os campos obrigatorios: Cliente, Descricao, Categoria e Data', 'error');
-    return;
-  }
-
-  if (data.tipoPagamento === 'PARCELADO' && data.quantidadeParcelas < 2) {
-    showToast('Pagamento parcelado precisa de pelo menos 2 parcelas', 'error');
-    return;
-  }
-
   try {
-    if (id) {
-      await apiPut(`/movimentacoes/${id}`, data);
-      showToast('Movimentação atualizada', 'success');
-    } else {
-      await apiPost('/movimentacoes', data);
-      showToast('Movimentação criada', 'success');
-    }
-
-    closeModal();
-    loadMovimentacoes();
-    loadProdutos();
-    loadDashboard();
-  } catch (err) {
-    showToast(`Erro: ${err.message}`, 'error');
-  }
+    await apiPost('/movimentacoes', data);
+    closeModal(); loadMovimentacoes(); loadDashboard();
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 async function deleteMovimentacao(id) {
-  if (!canWriteMovimentacoes()) {
-    showToast('Seu perfil permite apenas leitura de movimentacoes.', 'error');
-    return;
-  }
+  if (!confirm('Deseja excluir?')) return;
+  try { await apiDelete(`/movimentacoes/${id}`); loadMovimentacoes(); loadDashboard(); } catch (err) { showToast(err.message, 'error'); }
+}
 
-  if (!confirm('Tem certeza que deseja excluir esta movimentação?')) return;
-
+// --- CLIENTES ---
+async function loadClientes() {
+  const tbody = document.getElementById('clientes-table-body');
+  if (!tbody) return;
   try {
-    await apiDelete(`/movimentacoes/${id}`);
-    showToast('Movimentação excluída', 'success');
-    loadMovimentacoes();
-    loadDashboard();
-  } catch (err) {
-    showToast(`Erro ao excluir: ${err.message}`, 'error');
-  }
+    const clientes = await apiGet('/clientes');
+    tbody.innerHTML = clientes.map(c => `
+      <tr>
+        <td>${escapeHtml(c.nome)}</td>
+        <td>${c.documento || '-'}</td>
+        <td>${c.email || '-'}</td>
+        <td>${c.telefone || '-'}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="deleteCliente(${c.id})">Excluir</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) { tbody.innerHTML = 'Erro ao carregar.'; }
 }
 
-function renderCategoriaTable(title, categorias, colorClass) {
-  if (!categorias || categorias.length === 0) return '';
-
-  return `
-    <div class="card mt-4">
-      <div class="card-header">
-        <span class="card-title">${escapeHtml(title)}</span>
-      </div>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Categoria</th>
-              <th>Quantidade</th>
-              <th>Valor total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${categorias.map(item => `
-              <tr>
-                <td class="td-name">${escapeHtml(item.categoria)}</td>
-                <td>${item.quantidade}</td>
-                <td><strong class="text-${colorClass}">${formatCurrency(item.valorTotal)}</strong></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
+function openClienteModal() {
+  const body = `
+    <div class="form-group"><label class="form-label">Nome</label><input type="text" id="cli-nome" class="form-input"></div>
+    <div class="form-group"><label class="form-label">Documento</label><input type="text" id="cli-documento" class="form-input"></div>
+    <div class="form-group"><label class="form-label">E-mail</label><input type="email" id="cli-email" class="form-input"></div>
   `;
+  openModal('Novo Cliente', body, `<button class="btn btn-primary" onclick="saveCliente()">Salvar</button>`);
 }
 
-function renderFechamentoPorCliente(fechamentoPorCliente) {
-  if (!fechamentoPorCliente || fechamentoPorCliente.length === 0) {
-    return `
-      <div class="card mt-4">
-        <div class="card-body">
-          ${buildEmptyState('Nenhum cliente com parcelas no período selecionado.', 'Cadastre movimentações com cliente e vencimento para acompanhar o fechamento mensal.')}
-        </div>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="card mt-4">
-      <div class="card-header">
-        <span class="card-title">Fechamento por cliente</span>
-      </div>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Movimentado</th>
-              <th>Devido no período</th>
-              <th>Qtd. lançamentos</th>
-              <th>Próximo vencimento</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${fechamentoPorCliente.map(cliente => `
-              <tr>
-                <td class="td-name">${escapeHtml(cliente.cliente)}</td>
-                <td>${formatCurrency(cliente.valorTotalMovimentado)}</td>
-                <td><strong class="text-success">${formatCurrency(cliente.valorDevidoNoPeriodo)}</strong></td>
-                <td>${cliente.quantidadeMovimentacoes}</td>
-                <td>${formatDate(cliente.proximoVencimento)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="report-client-grid">
-      ${fechamentoPorCliente.map(cliente => `
-        <div class="card report-client-card">
-          <div class="card-header">
-            <span class="card-title">${escapeHtml(cliente.cliente)}</span>
-            <span class="badge badge-success">${formatCurrency(cliente.valorDevidoNoPeriodo)}</span>
-          </div>
-          <div class="card-body">
-            <div class="report-client-meta">
-              <div class="report-client-metric">
-                <span>Total movimentado</span>
-                <strong>${formatCurrency(cliente.valorTotalMovimentado)}</strong>
-              </div>
-              <div class="report-client-metric">
-                <span>Lançamentos no período</span>
-                <strong>${cliente.quantidadeMovimentacoes}</strong>
-              </div>
-              <div class="report-client-metric">
-                <span>Primeiro vencimento</span>
-                <strong>${formatDate(cliente.proximoVencimento)}</strong>
-              </div>
-            </div>
-
-            <div class="report-client-section">
-              <h3>Quanto deve por mês</h3>
-              <div class="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Mês</th>
-                      <th>Valor devido</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${cliente.debitosMensais.map(item => `
-                      <tr>
-                        <td>${escapeHtml(item.competencia)}</td>
-                        <td><strong>${formatCurrency(item.valorDevido)}</strong></td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="report-client-section">
-              <h3>Movimentações do cliente</h3>
-              <div class="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Descrição</th>
-                      <th>Categoria</th>
-                      <th>Valor</th>
-                      <th>Data</th>
-                      <th>Pagamento</th>
-                      <th>Parcelas</th>
-                      <th>1º vencimento</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${cliente.movimentacoes.map(item => `
-                      <tr>
-                        <td class="td-name">${escapeHtml(item.descricao)}</td>
-                        <td>${escapeHtml(item.categoria)}</td>
-                        <td>${formatCurrency(item.valor)}</td>
-                        <td>${formatDate(item.data)}</td>
-                        <td>${escapeHtml(formatTipoPagamento(item.tipoPagamento))}</td>
-                        <td>${escapeHtml(formatParcelas(item.quantidadeParcelas, item.valor))}</td>
-                        <td>${formatDate(item.dataPrimeiroVencimento)}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
+async function saveCliente() {
+  const data = {
+    nome: document.getElementById('cli-nome').value,
+    documento: document.getElementById('cli-documento').value,
+    email: document.getElementById('cli-email').value
+  };
+  try { await apiPost('/clientes', data); closeModal(); loadClientes(); } catch (err) { showToast(err.message, 'error'); }
 }
 
-let lastRelatorioFinanceiroData = null;
-let lastRelatorioProdutosData = null;
+async function deleteCliente(id) {
+  if (!confirm('Deseja excluir?')) return;
+  try { await apiDelete(`/clientes/${id}`); loadClientes(); } catch (err) { showToast(err.message, 'error'); }
+}
+
+// --- RELATORIOS ---
+async function loadRelatoriosPage() {
+  // Pré-preencher datas (mês atual)
+  const hoje = new Date();
+  const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+  const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
+  const inicio = document.getElementById('rel-data-inicio');
+  const fim = document.getElementById('rel-data-fim');
+  if (inicio && !inicio.value) inicio.value = primeiroDia;
+  if (fim && !fim.value) fim.value = ultimoDia;
+  
+  const container = document.getElementById('relatorio-financeiro-content');
+  if (container) container.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-state-icon">📊</div>
+      <div class="empty-state-text">Selecione o período e clique em Gerar Relatório</div>
+    </div>`;
+  
+  await loadRelatorioProdutos();
+  
+  // Carregar relatório por vendedor se for gestor
+  if (isAdmin()) await loadRelatorioVendedores();
+}
 
 async function loadRelatorioFinanceiro() {
   const inicio = document.getElementById('rel-data-inicio').value;
   const fim = document.getElementById('rel-data-fim').value;
+  if (!inicio || !fim) { showToast('Selecione o período completo.', 'error'); return; }
   const container = document.getElementById('relatorio-financeiro-content');
-
-  if (!inicio || !fim) {
-    showToast('Selecione as datas de início e fim', 'error');
-    return;
-  }
-
   container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Gerando relatório...</div>';
-
   try {
-    const relatorio = await apiGet(`/relatorios/financeiro?dataInicio=${inicio}&dataFim=${fim}`);
-    lastRelatorioFinanceiroData = { relatorio, inicio, fim };
+    const r = await apiGet(`/relatorios/financeiro?dataInicio=${inicio}&dataFim=${fim}`);
+    const saldo = r.saldoPeriodo || 0;
+    const saldoClass = saldo >= 0 ? 'text-success' : 'text-danger';
+
+    const catEntradasHTML = (r.entradasPorCategoria || []).map(c => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13px;color:var(--text-secondary);">${escapeHtml(c.categoria)}</span>
+        <div style="text-align:right;">
+          <span class="text-success" style="font-weight:700;">${formatCurrency(c.valorTotal)}</span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">${c.quantidade} mov.</span>
+        </div>
+      </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">Nenhuma entrada no período.</p>';
+
+    const catSaidasHTML = (r.saidasPorCategoria || []).map(c => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13px;color:var(--text-secondary);">${escapeHtml(c.categoria)}</span>
+        <div style="text-align:right;">
+          <span class="text-danger" style="font-weight:700;">${formatCurrency(c.valorTotal)}</span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">${c.quantidade} mov.</span>
+        </div>
+      </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">Nenhuma saída no período.</p>';
+
+    const clientesHTML = (r.fechamentoPorCliente || []).slice(0, 10).map(fc => `
+      <div style="padding:10px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:700;font-size:13px;color:var(--text-primary);">${escapeHtml(fc.cliente)}</span>
+          <span class="text-success" style="font-weight:700;">${formatCurrency(fc.valorDevidoNoPeriodo)}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${fc.quantidadeMovimentacoes} movimentações · Total movimentado: ${formatCurrency(fc.valorTotalMovimentado)}</div>
+      </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">Nenhum cliente com débito no período.</p>';
 
     container.innerHTML = `
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;">
-        <button class="btn btn-success" onclick="exportRelatorioFinanceiroCSV()">Exportar CSV</button>
-      </div>
-      <div class="kpi-grid">
+      <div class="kpi-grid" style="margin-bottom:20px;">
         <div class="kpi-card" data-color="emerald">
-          <div class="kpi-label">Entradas no período</div>
-          <div class="kpi-value text-success">${formatCurrency(relatorio.totalEntradas)}</div>
+          <div class="kpi-label">📈 Total Entradas</div>
+          <div class="kpi-value text-success">${formatCurrency(r.totalEntradas)}</div>
+          <div class="kpi-hint">Média diária: ${formatCurrency(r.mediaDiariaEntradas)}</div>
         </div>
         <div class="kpi-card" data-color="red">
-          <div class="kpi-label">Saídas no período</div>
-          <div class="kpi-value text-danger">${formatCurrency(relatorio.totalSaidas)}</div>
+          <div class="kpi-label">📉 Total Saídas</div>
+          <div class="kpi-value text-danger">${formatCurrency(r.totalSaidas)}</div>
+          <div class="kpi-hint">Média diária: ${formatCurrency(r.mediaDiariaSaidas)}</div>
         </div>
-        <div class="kpi-card" data-color="${relatorio.saldoPeriodo >= 0 ? 'emerald' : 'red'}">
-          <div class="kpi-label">Saldo do período</div>
-          <div class="kpi-value ${relatorio.saldoPeriodo >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(relatorio.saldoPeriodo)}</div>
-        </div>
-        <div class="kpi-card" data-color="amber">
-          <div class="kpi-label">Número de movimentações</div>
-          <div class="kpi-value">${relatorio.quantidadeMovimentacoes}</div>
-        </div>
-        <div class="kpi-card" data-color="cyan">
-          <div class="kpi-label">Média diária de entradas</div>
-          <div class="kpi-value">${formatCurrency(relatorio.mediaDiariaEntradas)}</div>
-        </div>
-        <div class="kpi-card" data-color="violet">
-          <div class="kpi-label">Média diária de saídas</div>
-          <div class="kpi-value">${formatCurrency(relatorio.mediaDiariaSaidas)}</div>
+        <div class="kpi-card" data-color="${saldo >= 0 ? 'emerald' : 'red'}">
+          <div class="kpi-label">💰 Saldo do Período</div>
+          <div class="kpi-value ${saldoClass}">${formatCurrency(saldo)}</div>
+          <div class="kpi-hint">${r.quantidadeMovimentacoes || 0} movimentações</div>
         </div>
         <div class="kpi-card" data-color="indigo">
-          <div class="kpi-label">Clientes com débitos</div>
-          <div class="kpi-value">${relatorio.totalClientesComDebitos || 0}</div>
-        </div>
-        <div class="kpi-card" data-color="emerald">
-          <div class="kpi-label">Total devido por cliente</div>
-          <div class="kpi-value text-success">${formatCurrency(relatorio.totalDevidoPorClientesNoPeriodo)}</div>
+          <div class="kpi-label">👥 Clientes c/ Débito</div>
+          <div class="kpi-value">${r.totalClientesComDebito || 0}</div>
+          <div class="kpi-hint">Total: ${formatCurrency(r.totalDevidoPorClientesNoPeriodo)}</div>
         </div>
       </div>
 
-      ${renderCategoriaTable('Entradas por categoria', relatorio.entradasPorCategoria, 'success')}
-      ${renderCategoriaTable('Saídas por categoria', relatorio.saidasPorCategoria, 'danger')}
-      ${renderFechamentoPorCliente(relatorio.fechamentoPorCliente)}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div class="card" style="padding:18px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📥 Entradas por Categoria</div>
+          ${catEntradasHTML}
+        </div>
+        <div class="card" style="padding:18px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📤 Saídas por Categoria</div>
+          ${catSaidasHTML}
+        </div>
+      </div>
+
+      <div class="card" style="padding:18px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">👤 Fechamento por Cliente (Top 10)</div>
+        ${clientesHTML}
+      </div>
     `;
 
-    showToast('Relatório financeiro gerado', 'success');
-  } catch (err) {
-    container.innerHTML = buildEmptyState('Falha ao gerar relatório', err.message);
-    showToast(`Erro: ${err.message}`, 'error');
-  }
-}
+    // Atualiza relatório por vendedor com o mesmo período
+    if (isAdmin()) await loadRelatorioVendedores(inicio, fim);
 
-function exportRelatorioFinanceiroCSV() {
-  if (!lastRelatorioFinanceiroData) {
-    showToast('Gere o relatório antes de exportar', 'error');
-    return;
-  }
-
-  const { relatorio, inicio, fim } = lastRelatorioFinanceiroData;
-  let csv = '';
-
-  csv += 'RELATÓRIO FINANCEIRO\n';
-  csv += `Período;${inicio};${fim}\n`;
-  csv += '\n';
-  csv += 'RESUMO\n';
-  csv += `Total Entradas;${relatorio.totalEntradas}\n`;
-  csv += `Total Saídas;${relatorio.totalSaidas}\n`;
-  csv += `Saldo Período;${relatorio.saldoPeriodo}\n`;
-  csv += `Número de Movimentações;${relatorio.quantidadeMovimentacoes}\n`;
-  csv += `Média Diária Entradas;${relatorio.mediaDiariaEntradas}\n`;
-  csv += `Média Diária Saídas;${relatorio.mediaDiariaSaidas}\n`;
-  csv += `Clientes com Débitos;${relatorio.totalClientesComDebitos || 0}\n`;
-  csv += `Total Devido por Cliente;${relatorio.totalDevidoPorClientesNoPeriodo}\n`;
-  csv += '\n';
-
-  if (relatorio.entradasPorCategoria && relatorio.entradasPorCategoria.length > 0) {
-    csv += 'ENTRADAS POR CATEGORIA\n';
-    csv += 'Categoria;Quantidade;Valor Total\n';
-    relatorio.entradasPorCategoria.forEach(item => {
-      csv += `${item.categoria};${item.quantidade};${item.valorTotal}\n`;
-    });
-    csv += '\n';
-  }
-
-  if (relatorio.saidasPorCategoria && relatorio.saidasPorCategoria.length > 0) {
-    csv += 'SAÍDAS POR CATEGORIA\n';
-    csv += 'Categoria;Quantidade;Valor Total\n';
-    relatorio.saidasPorCategoria.forEach(item => {
-      csv += `${item.categoria};${item.quantidade};${item.valorTotal}\n`;
-    });
-    csv += '\n';
-  }
-
-  if (relatorio.fechamentoPorCliente && relatorio.fechamentoPorCliente.length > 0) {
-    csv += 'FECHAMENTO POR CLIENTE\n';
-    csv += 'Cliente;Total Movimentado;Devido no Período;Qtd Lançamentos;Próximo Vencimento\n';
-    relatorio.fechamentoPorCliente.forEach(cliente => {
-      csv += `${cliente.cliente};${cliente.valorTotalMovimentado};${cliente.valorDevidoNoPeriodo};${cliente.quantidadeMovimentacoes};${cliente.proximoVencimento}\n`;
-    });
-    csv += '\n';
-
-    csv += 'MOVIMENTAÇÕES POR CLIENTE\n';
-    csv += 'Cliente;Descrição;Categoria;Valor;Data;Tipo Pagamento;Quantidade Parcelas;Data Primeiro Vencimento\n';
-    relatorio.fechamentoPorCliente.forEach(cliente => {
-      cliente.movimentacoes.forEach(mov => {
-        csv += `${cliente.cliente};${mov.descricao};${mov.categoria};${mov.valor};${mov.data};${mov.tipoPagamento};${mov.quantidadeParcelas};${mov.dataPrimeiroVencimento}\n`;
-      });
-    });
-    csv += '\n';
-  }
-
-  csv += 'DÉBITOS MENSAIS POR CLIENTE\n';
-  csv += 'Cliente;Competência;Valor Devido\n';
-  relatorio.fechamentoPorCliente.forEach(cliente => {
-    cliente.debitosMensais.forEach(debito => {
-      csv += `${cliente.cliente};${debito.competencia};${debito.valorDevido}\n`;
-    });
-  });
-
-  downloadCSV(csv, `relatório_financeiro_${inicio}_${fim}.csv`);
-  showToast('CSV exportado com sucesso', 'success');
-}
-
-function downloadCSV(csv, filename) {
-  const BOM = '\uFEFF';
-  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  } catch (err) { container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Erro ao gerar relatório: ${escapeHtml(err.message)}</div></div>`; }
 }
 
 async function loadRelatorioProdutos() {
   const container = document.getElementById('relatorio-produtos-content');
-  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Gerando relatório...</div>';
-
+  if (!container) return;
+  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando...</div>';
   try {
-    const relatorio = await apiGet('/relatorios/produtos');
-    lastRelatorioProdutosData = relatorio;
+    const r = await apiGet('/relatorios/produtos');
+    const catHTML = (r.porCategoria || []).map(c => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <span style="font-size:13px;color:var(--text-primary);font-weight:600;">${escapeHtml(c.categoria)}</span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">${c.quantidadeProdutos} skus · ${c.quantidadeItensEstoque} itens</span>
+        </div>
+        <div style="text-align:right;">
+          <span style="font-size:12px;color:var(--text-secondary);">${formatCurrency(c.valorEstoqueVenda)}</span>
+        </div>
+      </div>`).join('') || '<p style="color:var(--text-muted);">Sem produtos cadastrados.</p>';
 
     container.innerHTML = `
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;">
-        <button class="btn btn-success" onclick="exportRelatorioProdutosCSV()">Exportar CSV</button>
+      <div class="kpi-grid" style="margin-bottom:16px;">
+        <div class="kpi-card" data-color="indigo"><div class="kpi-label">📦 Produtos Ativos</div><div class="kpi-value">${r.totalProdutosAtivos}</div></div>
+        <div class="kpi-card" data-color="amber"><div class="kpi-label">🗄️ Itens em Estoque</div><div class="kpi-value">${r.totalItensEmEstoque}</div></div>
+        <div class="kpi-card" data-color="emerald"><div class="kpi-label">💵 Valor Venda</div><div class="kpi-value text-success">${formatCurrency(r.valorTotalEstoqueVenda)}</div></div>
+        <div class="kpi-card" data-color="red"><div class="kpi-label">💸 Valor Custo</div><div class="kpi-value text-danger">${formatCurrency(r.valorTotalEstoqueCusto)}</div></div>
+        <div class="kpi-card" data-color="emerald"><div class="kpi-label">📈 Margem Bruta</div><div class="kpi-value text-success">${formatCurrency(r.margemBrutaEstoque)}</div></div>
       </div>
-      <div class="kpi-grid" style="margin-bottom:20px">
-        <div class="kpi-card" data-color="indigo">
-          <div class="kpi-label">Total produtos</div>
-          <div class="kpi-value">${relatorio.totalProdutos}</div>
-        </div>
-        <div class="kpi-card" data-color="emerald">
-          <div class="kpi-label">Ativos</div>
-          <div class="kpi-value text-success">${relatorio.totalProdutosAtivos}</div>
-        </div>
-        <div class="kpi-card" data-color="red">
-          <div class="kpi-label">Inativos</div>
-          <div class="kpi-value text-danger">${relatorio.totalProdutosInativos}</div>
-        </div>
-        <div class="kpi-card" data-color="cyan">
-          <div class="kpi-label">Itens em estoque</div>
-          <div class="kpi-value">${(relatorio.totalItensEmEstoque || 0).toLocaleString('pt-BR')}</div>
-        </div>
-        <div class="kpi-card" data-color="amber">
-          <div class="kpi-label">Valor estoque (custo)</div>
-          <div class="kpi-value">${formatCurrency(relatorio.valorTotalEstoqueCusto)}</div>
-        </div>
-        <div class="kpi-card" data-color="violet">
-          <div class="kpi-label">Valor estoque (venda)</div>
-          <div class="kpi-value">${formatCurrency(relatorio.valorTotalEstoqueVenda)}</div>
-        </div>
-        <div class="kpi-card" data-color="emerald">
-          <div class="kpi-label">Margem bruta</div>
-          <div class="kpi-value text-success">${formatCurrency(relatorio.margemBrutaEstoque)}</div>
-        </div>
-      </div>
-
-      ${relatorio.porCategoria && relatorio.porCategoria.length > 0 ? `
-        <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text-secondary)">Por categoria</h3>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Categoria</th>
-                <th>Produtos</th>
-                <th>Itens</th>
-                <th>Valor custo</th>
-                <th>Valor venda</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${relatorio.porCategoria.map(item => `
-                <tr>
-                  <td class="td-name">${escapeHtml(item.categoria)}</td>
-                  <td>${item.quantidadeProdutos}</td>
-                  <td>${(item.quantidadeItensEstoque || 0).toLocaleString('pt-BR')}</td>
-                  <td>${formatCurrency(item.valorEstoqueCusto)}</td>
-                  <td><strong>${formatCurrency(item.valorEstoqueVenda)}</strong></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      ` : buildEmptyState('Sem categorias para exibir')}
-    `;
-
-    showToast('Relatório de produtos gerado', 'success');
-  } catch (err) {
-    container.innerHTML = buildEmptyState('Falha ao gerar relatório', err.message);
-    showToast(`Erro: ${err.message}`, 'error');
-  }
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Por Categoria</div>
+      ${catHTML}`;
+  } catch (err) { container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">${escapeHtml(err.message)}</div></div>`; }
 }
 
-function exportRelatorioProdutosCSV() {
-  if (!lastRelatorioProdutosData) {
-    showToast('Gere o relatório antes de exportar', 'error');
-    return;
-  }
-
-  const r = lastRelatorioProdutosData;
-  let csv = '';
-
-  csv += 'RELATÓRIO DE PRODUTOS\n';
-  csv += '\n';
-  csv += 'RESUMO\n';
-  csv += `Total Produtos;${r.totalProdutos}\n`;
-  csv += `Total Produtos Ativos;${r.totalProdutosAtivos}\n`;
-  csv += `Total Produtos Inativos;${r.totalProdutosInativos}\n`;
-  csv += `Total Itens em Estoque;${r.totalItensEmEstoque}\n`;
-  csv += `Valor Total Estoque Custo;${r.valorTotalEstoqueCusto}\n`;
-  csv += `Valor Total Estoque Venda;${r.valorTotalEstoqueVenda}\n`;
-  csv += `Margem Bruta Estoque;${r.margemBrutaEstoque}\n`;
-  csv += '\n';
-
-  if (r.porCategoria && r.porCategoria.length > 0) {
-    csv += 'POR CATEGORIA\n';
-    csv += 'Categoria;Quantidade Produtos;Itens Estoque;Valor Estoque Custo;Valor Estoque Venda\n';
-    r.porCategoria.forEach(item => {
-      csv += `${item.categoria};${item.quantidadeProdutos};${item.quantidadeItensEstoque};${item.valorEstoqueCusto};${item.valorEstoqueVenda}\n`;
-    });
-  }
-
-  downloadCSV(csv, 'relatorio_produtos.csv');
-  showToast('CSV exportado com sucesso', 'success');
+async function loadRelatorioVendedores(inicio, fim) {
+  const container = document.getElementById('relatorio-usuarios-content');
+  if (!container || !isAdmin()) return;
+  const dataInicio = inicio || document.getElementById('rel-data-inicio')?.value || new Date().toISOString().split('T')[0].slice(0,7) + '-01';
+  const dataFim = fim || document.getElementById('rel-data-fim')?.value || new Date().toISOString().split('T')[0];
+  try {
+    const vendedores = await apiGet(`/relatorios/financeiro/usuarios?dataInicio=${dataInicio}&dataFim=${dataFim}`);
+    if (!vendedores.length) { container.innerHTML = ''; return; }
+    container.innerHTML = `
+      <div class="card" style="padding:20px;margin-top:16px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:16px;">🏆 Desempenho por Vendedor</div>
+        <div style="display:grid;gap:10px;">
+          ${vendedores.map((v, i) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.02);">
+              <div style="font-size:18px;font-weight:800;color:var(--text-muted);min-width:28px;">#${i+1}</div>
+              <div style="flex:1;">
+                <div style="font-weight:700;font-size:14px;color:var(--text-primary);">${escapeHtml(v.nome || v.username)}</div>
+                <div style="font-size:11px;color:var(--text-muted);">@${escapeHtml(v.username)} · ${v.quantidadeMovimentacoes} mov.</div>
+              </div>
+              <div style="text-align:right;">
+                <div class="text-success" style="font-weight:700;">${formatCurrency(v.totalEntradas)}</div>
+                <div class="text-danger" style="font-size:12px;">${formatCurrency(v.totalSaidas)}</div>
+                <div style="font-size:11px;color:var(--text-muted);">saldo: <span class="${v.saldo >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(v.saldo)}</span></div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  } catch (e) { container.innerHTML = ''; }
 }
 
-function switchHistoricoTab(tabId) {
-  document.getElementById('view-timeline').style.display = tabId === 'timeline' ? 'block' : 'none';
-  document.getElementById('view-logs').style.display = tabId === 'logs' ? 'block' : 'none';
-  document.getElementById('btn-tab-timeline').className = tabId === 'timeline' ? 'btn btn-primary' : 'btn btn-ghost';
-  document.getElementById('btn-tab-logs').className = tabId === 'logs' ? 'btn btn-primary' : 'btn btn-ghost';
+// --- HISTORICO & LOGS ---
+function switchHistoricoTab(tab) {
+  document.getElementById('view-timeline').style.display = tab === 'timeline' ? 'block' : 'none';
+  document.getElementById('view-logs').style.display = tab === 'logs' ? 'block' : 'none';
+  document.getElementById('btn-tab-timeline').className = tab === 'timeline' ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('btn-tab-logs').className = tab === 'logs' ? 'btn btn-primary' : 'btn btn-ghost';
 }
-
-function clearLogs() {
-  window.appLogs = [];
-  renderLogs();
-  showToast('Logs limpos com sucesso', 'success');
-}
-
-function clearTimeline() {
-  const timeline = document.getElementById('historico-timeline');
-  if (!timeline) return;
-
-  timeline.innerHTML = buildEmptyState(
-    'A linha do tempo foi limpa apenas na interface.',
-    'Clique em "Atualizar" para recarregar as movimentações do banco.',
-    'X'
-  );
-
-  showToast('Linha do tempo limpa da interface', 'info');
-}
-
 function renderLogs() {
   const consoleEl = document.getElementById('log-console');
   if (!consoleEl) return;
-
-  if (window.appLogs.length === 0) {
-    consoleEl.innerHTML = '<div class="log-entry info"><span class="log-time">--:--:--</span> Nenhum log registrado até o momento.</div>';
-    return;
-  }
-
-  consoleEl.innerHTML = window.appLogs.map(log => `
-    <div class="log-entry ${escapeHtml(log.type)}">
-      <span class="log-time">[${escapeHtml(log.time)}]</span> ${escapeHtml(log.message)}
-    </div>
-  `).join('');
+  consoleEl.innerHTML = window.appLogs.map(l => `<div class="log-entry ${l.type}">[${l.time}] ${escapeHtml(l.message)}</div>`).join('');
 }
-
-function loadUsuarios() {
-  const container = document.getElementById('usuarios-list');
-  if (!container) return;
-
-  if (!isAdmin()) {
-    container.innerHTML = buildEmptyState('Acesso restrito', 'Somente administradores podem visualizar esta área.');
-    return;
-  }
-
-  const users = getUsers();
-
-  container.innerHTML = users.map(u => {
-    const roleLabel = u.role === 'ADMIN' ? 'ADMIN' : 'FUNCIONÁRIO';
-    const safeName = escapeHtml(u.name || '');
-    const safeUser = escapeHtml(u.username || '');
-    return `
-      <div class="user-row">
-        <div class="user-main">
-          <div class="user-username">${safeUser}</div>
-          <div class="user-meta">
-            <span class="badge ${u.role === 'ADMIN' ? 'badge-warning' : 'badge-info'}">${roleLabel}</span>
-            ${safeName ? `<span class="muted">&bull; ${safeName}</span>` : ''}
+async function loadHistorico() {
+  const timeline = document.getElementById('historico-timeline');
+  if (!timeline) return;
+  timeline.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando histórico...</div>';
+  try {
+    let movs = await apiGet('/movimentacoes');
+    movs.sort((a, b) => b.id - a.id);
+    if (!movs.length) {
+      timeline.innerHTML = buildEmptyState('Nenhuma movimentação encontrada.', isAdmin() ? 'Aguardando registros de qualquer vendedor.' : 'Você ainda não registrou movimentações.');
+      return;
+    }
+    timeline.innerHTML = movs.map(m => `
+      <div class="timeline-item">
+        <div class="timeline-icon ${m.tipo.toLowerCase()}">${m.tipo === 'ENTRADA' ? '+' : '-'}</div>
+        <div class="timeline-content" style="border:1px solid var(--border);padding:14px;border-radius:10px;flex:1;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div class="timeline-date">${formatDate(m.data)} &bull; <span class="badge ${m.tipo === 'ENTRADA' ? 'badge-success' : 'badge-danger'}">${m.tipo}</span></div>
+              <div class="timeline-title" style="margin-top:4px;">${escapeHtml(m.descricao)}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+                👤 <b>${escapeHtml(m.vendedorNome || m.vendedorUsername || 'Sistema')}</b>
+                ${m.cliente ? ` &bull; 🧑‍💼 ${escapeHtml(m.cliente)}` : ''}
+                ${m.categoria ? ` &bull; 🏷️ ${escapeHtml(m.categoria)}` : ''}
+                ${m.produtoNome ? ` &bull; 📦 ${escapeHtml(m.produtoNome)} (×${m.quantidade || 1})` : ''}
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <strong class="${m.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'}" style="font-size:16px;">${formatCurrency(m.valor)}</strong>
+              <br>
+              ${isAdmin() ? `<button class="btn btn-ghost btn-sm" style="margin-top:4px;" onclick="deleteMovimentacao(${m.id})">Excluir</button>` : ''}
+            </div>
           </div>
         </div>
-        <div class="user-actions">
-          ${u.username === (getCurrentUser().username || '') ? `<span class="muted">logado</span>` : ''}
-          ${u.role === 'ADMIN' ? '' : `<button class="btn btn-ghost btn-sm" onclick="handleDeleteUser('${encodeURIComponent(u.username)}')">Remover</button>`}
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  addAppLog('info', 'Lista de usuários atualizada.');
+      </div>`).join('');
+  } catch (err) {
+    timeline.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Erro: ${escapeHtml(err.message)}</div></div>`;
+  }
 }
 
-function handleCreateUser() {
-  if (!isAdmin()) {
-    showToast('Apenas admin pode criar usuários.', 'error');
-    return;
-  }
-
-  const usernameEl = document.getElementById('new-user-username');
-  const passwordEl = document.getElementById('new-user-password');
-  const nameEl = document.getElementById('new-user-name');
-
-  const username = (usernameEl?.value || '').trim();
-  const password = (passwordEl?.value || '');
-  const name = (nameEl?.value || '').trim();
-
-  if (!username || !password) {
-    showToast('Usuário e senha são obrigatórios.', 'error');
-    return;
-  }
-
-  const users = getUsers();
-  if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
-    showToast('Já existe um usuário com esse nome.', 'error');
-    return;
-  }
-
-  // Sempre cria como funcionário
-  users.push({ username, password, role: 'USER', name });
-
-  saveUsers(users);
-
-  usernameEl.value = '';
-  passwordEl.value = '';
-  if (nameEl) nameEl.value = '';
-
-  showToast('Usuário criado com sucesso.', 'success');
-  addAppLog('info', `Admin criou usuário: ${username}`);
-
-  loadUsuarios();
-}
-
-function handleDeleteUser(encodedUsername) {
-  if (!isAdmin()) {
-    showToast('Apenas admin pode remover usuários.', 'error');
-    return;
-  }
-
-  const username = decodeURIComponent(encodedUsername || '');
-  const users = getUsers();
-
-  const target = users.find(u => u.username === username);
-  if (!target) {
-    showToast('Usuário não encontrado.', 'error');
-    return;
-  }
-
-  if (target.role === 'ADMIN') {
-    showToast('Não é permitido remover administradores por aqui.', 'error');
-    return;
-  }
-
-  const next = users.filter(u => u.username !== username);
-  saveUsers(next);
-
-  showToast('Usuário removido.', 'success');
-  addAppLog('warn', `Admin removeu usuário: ${username}`);
-  loadUsuarios();
-}
-
+// --- USUARIOS ---
 async function loadUsuarios() {
   const container = document.getElementById('usuarios-list');
   if (!container) return;
 
-  if (!isSuperuser()) {
-    container.innerHTML = buildEmptyState('Acesso restrito', 'Somente superusuarios podem visualizar esta area.');
-    return;
-  }
-
-  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando usuarios...</div>';
+  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando usuários...</div>';
 
   try {
     const users = await apiGet('/usuarios');
 
     if (!users.length) {
-      container.innerHTML = buildEmptyState('Nenhum usuario cadastrado.');
+      container.innerHTML = buildEmptyState('Nenhum usuário cadastrado.');
       return;
     }
 
@@ -1793,60 +867,34 @@ async function loadUsuarios() {
       const isLoggedUser = String(u.id) === String(currentUser.id) || u.username === currentUser.username;
       const safeName = escapeHtml(u.nome || '');
       const safeUser = escapeHtml(u.username || '');
-      const roleLabel = role === 'SUPERUSER' ? 'SUPERUSER' : role === 'ADMIN' ? 'ADMIN' : 'FUNCIONARIO';
+      const roleLabel = role === 'SUPERUSER' ? 'SUPERUSER' : role === 'ADMIN' ? 'ADMIN' : 'VENDEDOR';
 
       return `
-        <div class="user-row">
+        <div class="user-row" style="border: 1px solid var(--border); padding: 16px; border-radius: 8px; margin-bottom: 12px; background: var(--bg-secondary);">
           <div class="user-main">
-            <div class="user-username">${safeUser}</div>
-            <div class="user-meta">
+            <div style="font-weight: 800; font-size: 16px;">${safeUser}</div>
+            <div style="margin-top: 4px;">
               <span class="badge ${role === 'SUPERUSER' ? 'badge-danger' : role === 'ADMIN' ? 'badge-warning' : 'badge-info'}">${roleLabel}</span>
               <span class="badge ${u.ativo ? 'badge-success' : 'badge-neutral'}">${u.ativo ? 'ATIVO' : 'INATIVO'}</span>
-              ${safeName ? `<span class="muted">&bull; ${safeName}</span>` : ''}
-              ${isLoggedUser ? '<span class="muted">&bull; logado</span>' : ''}
-            </div>
-            <div class="form-row" style="margin-top: 12px;">
-              <div class="form-group">
-                <label class="form-label">Perfil</label>
-                <select class="form-select" id="user-profile-${u.id}">
-                  <option value="USER" ${role === 'USER' ? 'selected' : ''}>Vendedor - proprias vendas</option>
-                  <option value="ADMIN" ${role === 'ADMIN' ? 'selected' : ''}>Administrador - dados</option>
-                  <option value="SUPERUSER" ${role === 'SUPERUSER' ? 'selected' : ''}>Superusuário - usuários</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Status</label>
-                <select class="form-select" id="user-active-${u.id}" ${isLoggedUser ? 'disabled' : ''}>
-                  <option value="true" ${u.ativo ? 'selected' : ''}>Ativo</option>
-                  <option value="false" ${!u.ativo ? 'selected' : ''}>Inativo</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group" style="margin-top: 8px;">
-              <label class="form-label">Nova senha (opcional)</label>
-              <input class="form-input" id="user-password-${u.id}" type="password" placeholder="Deixe vazio para manter a senha atual">
+              ${safeName ? `<span class="muted" style="margin-left: 8px;">&bull; ${safeName}</span>` : ''}
+              ${isLoggedUser ? '<span class="muted" style="margin-left: 8px;">&bull; logado</span>' : ''}
             </div>
           </div>
-          <div class="user-actions">
-            <button class="btn btn-ghost btn-sm" onclick="handleUpdateUser(${u.id})">Salvar</button>
+          <div class="user-actions" style="margin-top: 12px; display: flex; gap: 8px;">
+            <button class="btn btn-ghost btn-sm" onclick="openUserModal(${u.id})">Editar</button>
+            <button class="btn btn-ghost btn-sm text-danger" onclick="handleDeleteUser(${u.id})">Excluir</button>
           </div>
         </div>
       `;
     }).join('');
 
-    addAppLog('info', 'Lista de usuarios atualizada pelo backend.');
   } catch (err) {
-    container.innerHTML = buildEmptyState('Falha ao carregar usuarios', err.message);
-    showToast(`Erro ao carregar usuarios: ${err.message}`, 'error');
+    container.innerHTML = buildEmptyState('Falha ao carregar acessos', err.message);
+    showToast(`Erro ao carregar acessos: ${err.message}`, 'error');
   }
 }
 
 async function handleCreateUser() {
-  if (!isSuperuser()) {
-    showToast('Apenas superusuario pode criar usuarios.', 'error');
-    return;
-  }
-
   const usernameEl = document.getElementById('new-user-username');
   const passwordEl = document.getElementById('new-user-password');
   const nameEl = document.getElementById('new-user-name');
@@ -1860,992 +908,373 @@ async function handleCreateUser() {
     ativo: true
   };
 
-  if (!payload.username || !payload.password || !payload.nome) {
-    showToast('Usuario, senha e nome sao obrigatorios.', 'error');
+  if (!payload.username || !payload.password) {
+    showToast('Usuário e senha são obrigatórios.', 'error');
     return;
   }
 
   try {
     await apiPost('/usuarios', payload);
-
     usernameEl.value = '';
     passwordEl.value = '';
     if (nameEl) nameEl.value = '';
-    if (profileEl) profileEl.value = 'USER';
-
-    showToast('Usuario criado com sucesso.', 'success');
-    addAppLog('info', `Superusuario criou usuario: ${payload.username}`);
+    showToast('Usuário criado com sucesso.', 'success');
     loadUsuarios();
   } catch (err) {
-    showToast(`Erro ao criar usuario: ${err.message}`, 'error');
+    showToast(`Erro ao criar usuário: ${err.message}`, 'error');
   }
 }
 
-async function handleUpdateUser(id) {
-  if (!isSuperuser()) {
-    showToast('Apenas superusuario pode alterar usuarios.', 'error');
-    return;
-  }
-
+async function handleDeleteUser(id) {
+  if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
   try {
-    const current = await apiGet(`/usuarios/${id}`);
-    const password = document.getElementById(`user-password-${id}`)?.value || '';
-    const activeEl = document.getElementById(`user-active-${id}`);
-
-    const payload = {
-      nome: current.nome,
-      username: current.username,
-      perfil: document.getElementById(`user-profile-${id}`)?.value || current.perfil,
-      ativo: activeEl ? activeEl.value === 'true' : current.ativo,
-      password: password.trim() ? password : null
-    };
-
-    await apiPut(`/usuarios/${id}`, payload);
-    showToast('Usuario atualizado com sucesso.', 'success');
-    addAppLog('info', `Superusuario atualizou usuario: ${current.username}`);
-
-    const logged = getCurrentUser();
-    if (current.username === logged.username) {
-      const me = await apiGet('/auth/me');
-      setCurrentUser(me);
-      applyRoleAccessControl();
-    }
-
+    await apiDelete(`/usuarios/${id}`);
+    showToast('Usuário removido ou desativado.', 'success');
     loadUsuarios();
-  } catch (err) {
-    showToast(`Erro ao atualizar usuario: ${err.message}`, 'error');
-  }
-}
-
-async function loadHistorico() {
-  const timeline = document.getElementById('historico-timeline');
-  if (!timeline) return;
-
-  timeline.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando histórico...</div>';
-  renderLogs();
-
-  try {
-    const movimentacoes = await apiGet('/movimentacoes');
-    movimentacoes.sort((a, b) => b.id - a.id);
-
-    if (movimentacoes.length === 0) {
-      timeline.innerHTML = buildEmptyState('Nenhum evento registrado no histórico.', '', '[]');
-      return;
-    }
-
-    timeline.innerHTML = movimentacoes.map(item => {
-      const isEntrada = item.tipo === 'ENTRADA';
-
-      return `
-        <div class="timeline-item">
-          <div class="timeline-icon ${isEntrada ? 'entrada' : 'saida'}">${isEntrada ? '+' : '-'}</div>
-          <div class="timeline-content">
-            <div class="timeline-date">${formatDate(item.data)} - Movimentação #${item.id}</div>
-            <div class="timeline-title">${escapeHtml(item.descricao)}</div>
-            <div class="timeline-details">
-              Cliente: <strong>${escapeHtml(item.cliente || 'Sem cliente')}</strong>
-              &bull;
-              Categoria: <strong>${escapeHtml(item.categoria)}</strong>
-              &bull;
-              Pagamento: <strong>${escapeHtml(formatTipoPagamento(item.tipoPagamento))} ${escapeHtml(formatParcelas(item.quantidadeParcelas, item.valor))}</strong>
-              &bull;
-              Valor: <strong class="${isEntrada ? 'text-success' : 'text-danger'}">${formatCurrency(item.valor)}</strong>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    addAppLog('info', 'Histórico e timeline atualizados com sucesso.');
-  } catch (err) {
-    timeline.innerHTML = buildEmptyState('Falha ao carregar linha do tempo', err.message);
-    showToast(`Erro ao carregar histórico: ${err.message}`, 'error');
-  }
-}
-
-async function exportToCSV() {
-  showToast('Preparando exportação...', 'info');
-  try {
-    const data = await apiGet('/movimentacoes');
-    if (!data || data.length === 0) {
-      showToast('Nenhum dado para exportar.', 'warn');
-      return;
-    }
-
-    const headers = ['ID', 'Data', 'Tipo', 'Descricao', 'Categoria', 'Valor', 'Cliente', 'Vendedor', 'Pagamento', 'Parcelas'];
-    const rows = data.map(item => [
-      item.id,
-      formatDate(item.data),
-      item.tipo,
-      item.descricao,
-      item.categoria,
-      item.valor,
-      item.cliente || '',
-      item.vendedorNome || item.vendedorUsername || '',
-      formatTipoPagamento(item.tipoPagamento),
-      item.quantidadeParcelas || 1
-    ]);
-
-    const csvContent = [
-      headers.join(';'),
-      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
-    ].join('\n');
-
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const timestamp = new Date().toISOString().split('T')[0];
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', `movimentacoes_${timestamp}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showToast('Download concluído!', 'success');
-    addAppLog('info', 'Exportação para CSV realizada com sucesso.');
-  } catch (err) {
-    showToast('Falha na exportação: ' + err.message, 'error');
-  }
-}
-
-async function fetchStatus(path) {
-  try {
-    const response = await fetch(path);
-    return { ok: response.ok, status: response.status };
-  } catch (err) {
-    return { ok: false, status: 'offline' };
-  }
-}
-
-function renderInfraTechs(stack) {
-  return stack.map(item => `
-    <span class="server-tech-chip">
-      <strong>${escapeHtml(item.name)}</strong>
-      <span>${escapeHtml(item.version)}</span>
-    </span>
-  `).join('');
-}
-
-function renderInfraEndpoints(endpoints) {
-  return endpoints.map(endpoint => {
-    const path = endpoint.path || '';
-    const browsable = path.startsWith('/') && !path.includes('{') && !path.includes('AAAA-MM-DD');
-    const pathHtml = browsable
-      ? `<a href="${buildAbsoluteUrl(path)}" target="_blank" rel="noreferrer">${escapeHtml(path)}</a>`
-      : `<code>${escapeHtml(path)}</code>`;
-
-    return `
-      <div class="server-endpoint-row">
-        <span class="badge badge-info">${escapeHtml(endpoint.method)}</span>
-        <div>
-          <div class="server-endpoint-label">${escapeHtml(endpoint.label)}</div>
-          <div class="server-endpoint-path">${pathHtml}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function renderWarningList(warnings) {
-  if (!warnings.length) {
-    return buildEmptyState('Nenhum alerta dinâmico retornado.');
-  }
-
-  return `
-    <div class="server-warning-list">
-      ${warnings.map(warning => `
-        <div class="server-warning-item">
-          <span class="badge badge-warning">ALERTA</span>
-          <p>${escapeHtml(warning)}</p>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-function renderDatabaseTableMap(tables = []) {
-  if (!tables.length) {
-    return buildEmptyState('Nenhuma tabela retornada pelo banco.', 'Verifique a conexao e as permissoes do usuario do banco.');
-  }
-
-  const grouped = tables.reduce((acc, table) => {
-    const group = table.businessArea || table.module || 'Outras tabelas';
-    acc[group] = acc[group] || [];
-    acc[group].push(table);
-    return acc;
-  }, {});
-
-  return Object.entries(grouped).map(([group, groupTables]) => `
-    <div class="server-warning-item" style="background: rgba(15, 18, 26, 0.55);">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-        <div>
-          <div class="server-endpoint-label">${escapeHtml(group)}</div>
-          <p style="margin:6px 0 0; color: var(--text-muted); font-size: 12px;">
-            ${groupTables.length} estrutura${groupTables.length === 1 ? '' : 's'} encontrada${groupTables.length === 1 ? '' : 's'} automaticamente no Supabase.
-          </p>
-        </div>
-        <span class="badge badge-neutral">${escapeHtml(groupTables[0]?.audience || 'Sistema')}</span>
-      </div>
-
-      <div class="server-endpoint-list" style="margin-top:14px;">
-        ${groupTables.map(table => `
-          <div class="server-endpoint-row">
-            <span class="badge ${table.schema === 'public' ? 'badge-success' : 'badge-info'}">${escapeHtml(table.schema)}</span>
-            <div>
-              <div class="server-endpoint-label">${escapeHtml(table.friendlyName || table.name)}</div>
-              <div class="server-endpoint-path">
-                <code>${escapeHtml(table.qualifiedName || table.name)} · ${escapeHtml(String(table.columns || 0))} campos</code>
-              </div>
-              <p style="margin: 8px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5;">
-                ${escapeHtml(table.plainPurpose || table.description || 'Tabela detectada automaticamente.')}
-              </p>
-              ${(table.dependsOn || []).length ? `
-                <p style="margin: 6px 0 0; color: var(--text-muted); font-size: 11px;">
-                  Relacionada com: ${escapeHtml(table.dependsOn.join(', '))}
-                </p>
-              ` : ''}
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  `).join('');
-}
-
-async function loadInfraestrutura() {
-  const container = document.getElementById('infraestrutura-content');
-  if (!container) return;
-
-  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando infraestrutura...</div>';
-
-  try {
-    const [infra, health, dashboard, openApiStatus, swaggerStatus] = await Promise.all([
-      apiGet('/infra/stack'),
-      apiGet('/health').catch(() => null),
-      apiGet('/dashboard/resumo').catch(() => null),
-      fetchStatus('/v3/api-docs'),
-      fetchStatus('/swagger-ui/index.html')
-    ]);
-
-    const frontendUrl = buildAbsoluteUrl('/');
-    const apiBaseUrl = buildAbsoluteUrl(infra.access.apiBasePath);
-    const healthUrl = buildAbsoluteUrl('/api/v1/health');
-    const produtosUrl = buildAbsoluteUrl('/api/v1/produtos');
-    const h2Url = infra.database.consoleEnabled ? buildAbsoluteUrl(infra.database.consolePath) : '';
-    const sshCommand = `ssh -i <sua-chave> ubuntu@${window.location.hostname} -p ${infra.access.sshPort}`;
-    const docsStatus = (openApiStatus.ok || swaggerStatus.ok)
-      ? `Docs online (${openApiStatus.status}/${swaggerStatus.status})`
-      : `Docs indisponíveis (${openApiStatus.status}/${swaggerStatus.status})`;
-
-    container.innerHTML = `
-      <section class="card server-hero">
-        <div class="server-hero-copy">
-          <span class="badge badge-info">Infra live</span>
-          <h2 class="server-hero-title">${escapeHtml(infra.application.displayName)}</h2>
-          <p class="server-hero-text">
-            Aplicação publicada como ${escapeHtml(infra.application.packaging)} em
-            <code>${escapeHtml(infra.runtime.operatingSystem)}</code>, acessível em
-            <code>${escapeHtml(frontendUrl)}</code>.
-          </p>
-          <div class="server-badge-row">
-            <span class="badge ${health?.api === 'ONLINE' ? 'badge-success' : 'badge-danger'}">API ${escapeHtml(health?.api || 'OFFLINE')}</span>
-            <span class="badge ${health?.database === 'ONLINE' ? 'badge-success' : 'badge-warning'}">Banco ${escapeHtml(health?.database || 'DESCONHECIDO')}</span>
-            <span class="badge badge-neutral">${escapeHtml(docsStatus)}</span>
-            <span class="badge badge-neutral">HTTP ${escapeHtml(String(infra.access.httpPort))}</span>
-          </div>
-        </div>
-        <div class="server-action-row">
-          <a class="btn btn-primary" href="${frontendUrl}" target="_blank" rel="noreferrer">Abrir site</a>
-          <a class="btn btn-ghost" href="${healthUrl}" target="_blank" rel="noreferrer">Health JSON</a>
-          <a class="btn btn-ghost" href="${produtosUrl}" target="_blank" rel="noreferrer">Produtos JSON</a>
-          ${h2Url ? `<a class="btn btn-ghost" href="${h2Url}" target="_blank" rel="noreferrer">H2 Console</a>` : ''}
-        </div>
-      </section>
-
-      ${dashboard ? `
-        <div class="kpi-grid server-kpi-grid">
-          <div class="kpi-card" data-color="emerald">
-            <div class="kpi-label">Saldo atual</div>
-            <div class="kpi-value text-success">${formatCurrency(dashboard.saldoAtual)}</div>
-          </div>
-          <div class="kpi-card" data-color="indigo">
-            <div class="kpi-label">Produtos ativos</div>
-            <div class="kpi-value">${dashboard.totalProdutosAtivos}</div>
-          </div>
-          <div class="kpi-card" data-color="cyan">
-            <div class="kpi-label">Itens em estoque</div>
-            <div class="kpi-value">${(dashboard.totalItensEmEstoque || 0).toLocaleString('pt-BR')}</div>
-          </div>
-          <div class="kpi-card" data-color="amber">
-            <div class="kpi-label">Movimentações</div>
-            <div class="kpi-value">${(dashboard.totalMovimentacoes || 0).toLocaleString('pt-BR')}</div>
-          </div>
-        </div>
-      ` : ''}
-
-      <div class="server-grid">
-        <section class="card server-panel server-panel-wide">
-          <div class="card-header">
-            <span class="card-title">Monitor SQL (Tempo Real)</span>
-          </div>
-          <div class="card-body">
-            <div id="live-sql-logs" style="max-height: 400px; overflow-y: auto; background: var(--bg-tertiary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; color: var(--text-secondary); white-space: pre-wrap;">
-              Carregando logs do banco de dados...
-            </div>
-          </div>
-        </section>
-
-        <section class="card server-panel">
-          <div class="card-header">
-            <span class="card-title">Como conectar</span>
-          </div>
-          <div class="card-body">
-            <div class="server-code-block">
-              <span>Frontend</span>
-              <code>${escapeHtml(frontendUrl)}</code>
-            </div>
-            <div class="server-code-block">
-              <span>API base</span>
-              <code>${escapeHtml(apiBaseUrl)}</code>
-            </div>
-            <div class="server-code-block">
-              <span>SSH</span>
-              <code>${escapeHtml(sshCommand)}</code>
-            </div>
-            <div class="server-code-block">
-              <span>Exemplo curl</span>
-              <code>${escapeHtml(`curl ${healthUrl}`)}</code>
-            </div>
-          </div>
-        </section>
-
-        <section class="card server-panel">
-          <div class="card-header">
-            <span class="card-title">Banco de dados</span>
-          </div>
-          <div class="card-body">
-            <div class="server-info-pair"><span>Engine</span><strong>${escapeHtml(infra.database.engine)}</strong></div>
-            <div class="server-info-pair"><span>Modo</span><strong>${escapeHtml(infra.database.mode)}</strong></div>
-            <div class="server-info-pair"><span>Usuário</span><strong>${escapeHtml(infra.database.username || 'não informado')}</strong></div>
-            <div class="server-code-block">
-              <span>JDBC URL</span>
-              <code>${escapeHtml(infra.database.url)}</code>
-            </div>
-            ${infra.database.consoleEnabled ? `
-              <div class="server-code-block">
-                <span>Console</span>
-                <code>${escapeHtml(h2Url)}</code>
-              </div>
-            ` : ''}
-          </div>
-        </section>
-
-        <section class="card server-panel">
-          <div class="card-header">
-            <span class="card-title">Runtime do servidor</span>
-          </div>
-          <div class="card-body">
-            <div class="server-info-pair"><span>Sistema</span><strong>${escapeHtml(infra.runtime.operatingSystem)}</strong></div>
-            <div class="server-info-pair"><span>Arquitetura</span><strong>${escapeHtml(infra.runtime.architecture)}</strong></div>
-            <div class="server-info-pair"><span>Java</span><strong>${escapeHtml(infra.runtime.javaVersion)}</strong></div>
-            <div class="server-info-pair"><span>Runtime</span><strong>${escapeHtml(infra.runtime.javaRuntime)}</strong></div>
-            <div class="server-info-pair"><span>JVM</span><strong>${escapeHtml(infra.runtime.javaVm)}</strong></div>
-          </div>
-        </section>
-
-        <section class="card server-panel">
-          <div class="card-header">
-            <span class="card-title">Tecnologias envolvidas</span>
-          </div>
-          <div class="card-body">
-            <div class="server-tech-grid">
-              ${renderInfraTechs(infra.stack || [])}
-            </div>
-          </div>
-        </section>
-
-        <section class="card server-panel server-panel-wide">
-          <div class="card-header">
-            <span class="card-title">APIs e acessos publicados</span>
-          </div>
-          <div class="card-body">
-            <div class="server-endpoint-list">
-              ${renderInfraEndpoints(infra.endpoints || [])}
-            </div>
-          </div>
-        </section>
-
-        <section class="card server-panel server-panel-wide card-collapsible collapsed" id="supabase-map-card">
-          <div class="card-header" onclick="toggleCard('supabase-map-card')" style="cursor: pointer;">
-            <span class="card-title">Mapa simples das tabelas do Supabase</span>
-            <button class="collapse-btn">▼</button>
-          </div>
-          <div class="card-body">
-            <p style="margin: 0 0 14px; color: var(--text-secondary); font-size: 13px;">
-              Esta leitura vem direto do banco. Quando uma tabela nova for criada e a aplicacao tiver permissao para enxerga-la, ela aparece aqui automaticamente.
-            </p>
-            <div class="server-warning-list">
-              ${renderDatabaseTableMap(infra.databaseTables || [])}
-            </div>
-          </div>
-        </section>
-
-        <section class="card server-panel server-panel-wide">
-          <div class="card-header">
-            <span class="card-title">Riscos e observações</span>
-          </div>
-          <div class="card-body">
-            ${renderWarningList(infra.warnings || [])}
-          </div>
-        </section>
-      </div>
-    `;
-
-    startSqlLogsPolling();
-  } catch (err) {
-    container.innerHTML = buildEmptyState('Falha ao carregar infraestrutura', err.message);
-    showToast(`Erro ao carregar infraestrutura: ${err.message}`, 'error');
-  }
-}
-
-function startSqlLogsPolling() {
-  const fetchLogs = async () => {
-    try {
-      let logs = await apiGet('/infra/sql-logs');
-      const container = document.getElementById('live-sql-logs');
-      if (!container) return;
-
-      if (!window.showSqlSelects) {
-        logs = logs.filter(log => !log.sql.toLowerCase().startsWith('select'));
-      }
-
-      if (logs.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-tertiary)">Nenhuma query SQL registrada (ou os SELECTs estão ocultos).</div>';
-        return;
-      }
-
-      container.innerHTML = logs.map(log => {
-        let highlightedSql = escapeHtml(log.sql);
-        
-        // Remove os placeholders '?' e limpa as vírgulas/espaços que sobram
-        highlightedSql = highlightedSql.replace(/\?/g, '');
-        highlightedSql = highlightedSql.replace(/,\s*,/g, ',');
-        highlightedSql = highlightedSql.replace(/\(\s*,/g, '(');
-        highlightedSql = highlightedSql.replace(/,\s*\)/g, ')');
-        highlightedSql = highlightedSql.replace(/\(\s+\)/g, '(...)');
-        highlightedSql = highlightedSql.replace(/=\s*([^\w])/g, '$1');
-
-        // Adiciona quebra de linha com recuo antes de palavras-chave principais
-        highlightedSql = highlightedSql.replace(
-          /\s(from|where|left outer join|inner join|right join|order by|group by|having|limit|offset|values|set)/gi,
-          match => `<br>&nbsp;&nbsp;${match.trim()}`
-        );
-
-        // Destaca as palavras-chave
-        highlightedSql = highlightedSql.replace(
-          /\b(select|insert|update|delete|from|where|and|or|join|inner|left|right|outer|on|group by|order by|asc|desc|limit|offset|set|values|into|create|alter|drop|table|index)\b/gi,
-          match => `<strong style="color: #10b981; text-transform: uppercase;">${match.toUpperCase()}</strong>`
-        );
-
-        return `<div style="margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px dotted var(--border-color); font-size: 11px; line-height: 1.1;">
-          <span style="color: var(--text-accent); font-weight: bold; opacity: 0.8; margin-right: 6px;">[${escapeHtml(log.timestamp)}]</span>
-          <span style="color: var(--text-primary);">${highlightedSql}</span>
-        </div>`;
-      }).join('');
-    } catch (e) {
-      console.error('Falha ao buscar logs SQL', e);
-    }
-  };
-
-  fetchLogs(); // run immediately
-  window.sqlLogsInterval = setInterval(fetchLogs, 2000); // refresh every 2s
-}
-
-function normalizeUser(user) {
-  if (!user) return null;
-  return {
-    id: user.id,
-    username: user.username || '',
-    role: user.perfil || user.role || '',
-    name: user.nome || user.name || user.username || '',
-    ativo: user.ativo
-  };
-}
-
-function getCurrentUser() {
-  const username = sessionStorage.getItem('authUserA3') || '';
-  const role = sessionStorage.getItem('authRoleA3') || '';
-  const name = sessionStorage.getItem('authNameA3') || '';
-  const id = sessionStorage.getItem('authUserIdA3') || '';
-  return { id, username, role, name };
-}
-
-function setCurrentUser(user) {
-  const normalized = normalizeUser(user);
-  if (!normalized) return;
-
-  sessionStorage.setItem('authA3', 'true');
-  sessionStorage.setItem('authUserIdA3', normalized.id || '');
-  sessionStorage.setItem('authUserA3', normalized.username);
-  sessionStorage.setItem('authRoleA3', normalized.role);
-  sessionStorage.setItem('authNameA3', normalized.name || normalized.username);
-}
-
-function clearCurrentUser() {
-  sessionStorage.removeItem('authA3');
-  sessionStorage.removeItem('authUserIdA3');
-  sessionStorage.removeItem('authUserA3');
-  sessionStorage.removeItem('authRoleA3');
-  sessionStorage.removeItem('authNameA3');
-}
-
-function isAuthenticated() {
-  return sessionStorage.getItem('authA3') === 'true';
-}
-
-function isAdmin() {
-  const role = sessionStorage.getItem('authRoleA3') || '';
-  return role === 'ADMIN' || role === 'SUPERUSER';
-}
-
-function isSuperuser() {
-  return (sessionStorage.getItem('authRoleA3') || '') === 'SUPERUSER';
-}
-
-function canWriteProducts() {
-  return isAuthenticated();
-}
-
-function canWriteMovimentacoes() {
-  return isAuthenticated();
-}
-
-async function handleLogin() {
-  const user = document.getElementById('login-user').value.trim();
-  const pass = document.getElementById('login-pass').value;
-
-  try {
-    const authenticatedUser = await apiPost('/auth/login', { username: user, password: pass });
-    setCurrentUser(authenticatedUser);
-    document.getElementById('login-error').style.display = 'none';
-
-    addAppLog('info', `Login realizado: ${authenticatedUser.username} (${authenticatedUser.perfil})`);
-
-    const loginScreen = document.getElementById('login-screen');
-    loginScreen.style.opacity = '0';
-    loginScreen.style.transition = '0.5s ease';
-
-    setTimeout(() => {
-      window.location.reload();
-    }, 500);
-  } catch (err) {
-    const errorEl = document.getElementById('login-error');
-    if (errorEl) {
-      errorEl.textContent = err.message || 'Credenciais inválidas ou erro no servidor.';
-      errorEl.style.display = 'block';
-    }
-    addAppLog('warn', `Falha de login para usuario: ${user || '(vazio)'} - Erro: ${err.message}`);
-  }
-}
-
-async function handleLogout() {
-  try {
-    await apiPost('/auth/logout', {});
-  } catch (err) {
-    // Logout local continua mesmo se a sessao ja tiver expirado no backend.
-  } finally {
-    clearCurrentUser();
-    window.location.reload();
-  }
-}
-
-function applyRoleAccessControl() {
-  if (!isAuthenticated()) return;
-
-  const admin = isAdmin();
-  const superuser = isSuperuser();
-
-  ['infraestrutura'].forEach(page => {
-    const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
-    const section = document.getElementById(`page-${page}`);
-    if (nav) nav.style.display = admin ? '' : 'none';
-    if (section) section.style.display = admin ? '' : 'none';
-  });
-
-  ['historico'].forEach(page => {
-    const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
-    const section = document.getElementById(`page-${page}`);
-    if (nav) nav.style.display = isAuthenticated() ? '' : 'none';
-    if (section) section.style.display = isAuthenticated() ? '' : 'none';
-  });
-
-  ['usuarios'].forEach(page => {
-    const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
-    const section = document.getElementById(`page-${page}`);
-    if (nav) nav.style.display = superuser ? '' : 'none';
-    if (section) section.style.display = superuser ? '' : 'none';
-  });
-
-  const produtoCreateButton = document.querySelector('#page-produtos .page-header .btn-primary');
-  const movimentacaoCreateButton = document.querySelector('#page-movimentacoes .page-header .btn-primary');
-  if (produtoCreateButton) produtoCreateButton.style.display = canWriteProducts() ? '' : 'none';
-  if (movimentacaoCreateButton) movimentacaoCreateButton.style.display = canWriteMovimentacoes() ? '' : 'none';
-
-  const active = document.querySelector('.page.active');
-  const activeId = active?.id || '';
-  const blockedAdminPage = !admin && (activeId === 'page-infraestrutura' || activeId === 'page-historico');
-  const blockedSuperuserPage = !superuser && activeId === 'page-usuarios';
-  if (blockedAdminPage || blockedSuperuserPage) {
-    navigateTo('dashboard');
-  }
-}
-
-async function syncSessionFromBackend() {
-  try {
-    const user = await apiGet('/auth/me');
-    setCurrentUser(user);
-
-    const loginScreen = document.getElementById('login-screen');
-    const secureApp = document.getElementById('secure-app');
-    if (loginScreen) loginScreen.style.display = 'none';
-    if (secureApp) secureApp.style.display = '';
-
-    return true;
-  } catch (err) {
-    clearCurrentUser();
-    return false;
-  }
-}
-
-async function initializeAuthenticatedApp() {
-  const authenticated = await syncSessionFromBackend();
-  if (!authenticated) {
-    const loginScreen = document.getElementById('login-screen');
-    const secureApp = document.getElementById('secure-app');
-    if (loginScreen) loginScreen.style.display = '';
-    if (secureApp) secureApp.style.display = 'none';
-    return;
-  }
-
-  applyRoleAccessControl();
-  loadDashboard();
-  checkSystemHealth();
-}
-
-function setDefaultDates() {
-  const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-
-  document.getElementById('rel-data-inicio').value = firstDay.toISOString().split('T')[0];
-  document.getElementById('rel-data-fim').value = today.toISOString().split('T')[0];
-}
-
-async function checkSystemHealth() {
-  const dot = document.getElementById('status-dot');
-  const text = document.getElementById('status-text');
-  const wrapper = document.getElementById('status-indicator');
-
-  if (!dot || !text || !wrapper) return;
-
-  dot.textContent = '...';
-  text.textContent = 'Verificando...';
-  text.style.color = 'var(--text-primary)';
-  wrapper.style.background = 'rgba(255,255,255,0.05)';
-
-  try {
-    const status = await apiGet('/health');
-
-    if (status.api === 'ONLINE' && status.database === 'ONLINE') {
-      dot.textContent = 'OK';
-      text.textContent = 'Sistemas online';
-      text.style.color = 'var(--accent-success)';
-      wrapper.style.background = 'rgba(16, 185, 129, 0.1)';
-    } else {
-      dot.textContent = 'DB';
-      text.textContent = 'Banco com alerta';
-      text.style.color = 'var(--accent-warning)';
-      wrapper.style.background = 'rgba(245, 158, 11, 0.1)';
-      addAppLog('warn', `Problema no banco: ${status.database_error || 'desconhecido'}`);
-    }
-  } catch (err) {
-    dot.textContent = 'API';
-    text.textContent = 'API offline';
-    text.style.color = 'var(--accent-danger)';
-    wrapper.style.background = 'rgba(239, 68, 68, 0.1)';
-    addAppLog('error', 'Sem conexão com o servidor backend.');
-  }
-}
-
-
-// --- CLIENTES (CRM) ---
-async function loadClientes() {
-  const tbody = document.getElementById('clientes-table-body');
-  const countEl = document.getElementById('clientes-count');
-  if (!tbody) return;
-
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center">Carregando clientes...</td></tr>';
-
-  try {
-    const clientes = await apiGet('/clientes');
-    countEl.textContent = `${clientes.length} cadastros`;
-    renderClientes(clientes);
-  } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Erro: ${err.message}</td></tr>`;
-  }
-}
-
-function renderClientes(clientes) {
-  const tbody = document.getElementById('clientes-table-body');
-  if (!tbody) return;
-
-  if (clientes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum cliente cadastrado.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = clientes.map(cli => `
-    <tr>
-      <td class="td-name">${escapeHtml(cli.nome)}</td>
-      <td>${cli.documento || '<span class="muted">N/A</span>'}</td>
-      <td>${cli.email || '<span class="muted">N/A</span>'}</td>
-      <td>${cli.telefone || '<span class="muted">N/A</span>'}</td>
-      <td>
-        <div style="display:flex; gap:4px;">
-          <button class="btn btn-ghost btn-sm" onclick="openClienteModal(${cli.id})">Editar</button>
-          <button class="btn btn-ghost btn-sm text-danger" onclick="deleteCliente(${cli.id})">Excluir</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-
-async function openClienteModal(id) {
-  const isEdit = Boolean(id);
-  const body = `
-    <input type="hidden" id="cli-id" value="${id || ''}">
-    <div class="form-group">
-      <label class="form-label">Nome Completo *</label>
-      <input type="text" id="cli-nome" class="form-input" placeholder="João da Silva" maxlength="120">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Documento (CPF/CNPJ)</label>
-        <input type="text" id="cli-documento" class="form-input" placeholder="000.000.000-00 ou 00.000.000/0000-00" maxlength="18">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Telefone</label>
-        <input type="text" id="cli-telefone" class="form-input" placeholder="(00) 00000-0000" maxlength="20">
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">E-mail</label>
-      <input type="email" id="cli-email" class="form-input" placeholder="cliente@email.com" maxlength="100">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Endereço</label>
-      <input type="text" id="cli-endereco" class="form-input" placeholder="Rua, Número, Bairro, Cidade" maxlength="200">
-    </div>
-  `;
-
-  const footer = `
-    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-    <button class="btn btn-primary" onclick="saveCliente()">${isEdit ? 'Atualizar' : 'Salvar Cliente'}</button>
-  `;
-
-  openModal(isEdit ? 'Editar Cliente' : 'Cadastrar Novo Cliente', body, footer);
-  
-  // Adicionar máscaras
-  const documentoInput = document.getElementById('cli-documento');
-  const telInput = document.getElementById('cli-telefone');
-  if (documentoInput) documentoInput.addEventListener('input', (e) => applyDocumentoMask(e.target));
-  if (telInput) telInput.addEventListener('input', (e) => applyPhoneMask(e.target));
-
-  if (isEdit) {
-    try {
-      const cli = await apiGet(`/clientes/${id}`);
-      document.getElementById('cli-nome').value = cli.nome || '';
-      document.getElementById('cli-documento').value = cli.documento || '';
-      document.getElementById('cli-telefone').value = cli.telefone || '';
-      document.getElementById('cli-email').value = cli.email || '';
-      document.getElementById('cli-endereco').value = cli.endereco || '';
-    } catch (err) {
-      showToast('Erro ao carregar dados do cliente', 'error');
-    }
-  }
-}
-
-async function saveCliente() {
-  const id = document.getElementById('cli-id').value;
-  const data = {
-    nome: document.getElementById('cli-nome').value.trim(),
-    documento: document.getElementById('cli-documento').value.trim(),
-    telefone: document.getElementById('cli-telefone').value.trim(),
-    email: document.getElementById('cli-email').value.trim(),
-    endereco: document.getElementById('cli-endereco').value.trim()
-  };
-
-  if (!data.nome) {
-    showToast('Nome é obrigatório', 'error');
-    return;
-  }
-
-  if (!data.documento) {
-    showToast('Documento é obrigatório', 'error');
-    return;
-  }
-
-  try {
-    if (id) {
-      await apiPut(`/clientes/${id}`, data);
-      showToast('Cliente atualizado!', 'success');
-    } else {
-      await apiPost('/clientes', data);
-      showToast('Cliente cadastrado!', 'success');
-    }
-    closeModal();
-    loadClientes();
-  } catch (err) {
-    showToast(`Erro ao salvar: ${err.message}`, 'error');
-  }
-}
-
-async function deleteCliente(id) {
-  if (!confirm('Deseja realmente excluir este cliente?')) return;
-  try {
-    await apiDelete(`/clientes/${id}`);
-    showToast('Cliente removido', 'success');
-    loadClientes();
   } catch (err) {
     showToast(`Erro ao excluir: ${err.message}`, 'error');
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  setDefaultDates();
-  updateMobilePageTitle('dashboard');
-  syncResponsiveLayout();
-  renderLogs();
-  initializeAuthenticatedApp();
-});
+async function openUserModal(id) {
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+  
+  modalTitle.innerText = 'Editar Usuário / Redefinir Senha';
+  modalBody.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando dados...</div>';
+  modalFooter.innerHTML = '';
+  openModal();
 
-window.addEventListener('resize', syncResponsiveLayout);
-
-setInterval(checkSystemHealth, 30000);
-
-
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') {
-    closeModal();
-    closeSidebar();
+  try {
+    const u = await apiGet(`/usuarios/${id}`);
+    modalBody.innerHTML = `
+      <form id="form-user" onsubmit="event.preventDefault(); saveUser(${id})">
+        <div class="form-group">
+          <label class="form-label">Nome Completo</label>
+          <input class="form-input" id="edit-user-nome" type="text" value="${escapeHtml(u.nome || '')}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Usuário (Login)</label>
+          <input class="form-input" id="edit-user-username" type="text" value="${escapeHtml(u.username)}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nova Senha (deixe em branco para manter a atual)</label>
+          <input class="form-input" id="edit-user-password" type="password" placeholder="Digite a nova senha se desejar alterar">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Perfil</label>
+          <select class="form-select" id="edit-user-profile">
+            <option value="USER" ${u.perfil === 'USER' ? 'selected' : ''}>Vendedor</option>
+            <option value="ADMIN" ${u.perfil === 'ADMIN' ? 'selected' : ''}>Administrador</option>
+            <option value="SUPERUSER" ${u.perfil === 'SUPERUSER' ? 'selected' : ''}>Superusuário</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select" id="edit-user-ativo">
+            <option value="true" ${u.ativo ? 'selected' : ''}>Ativo</option>
+            <option value="false" ${!u.ativo ? 'selected' : ''}>Inativo</option>
+          </select>
+        </div>
+      </form>
+    `;
+    modalFooter.innerHTML = `
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveUser(${id})">Salvar Alterações</button>
+    `;
+  } catch (err) {
+    modalBody.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
   }
-});
-
-// --- SEGURANÇA: TROCA DE SENHA SELF-SERVICE ---
-function openChangePasswordModal() {
-  const content = `
-    <form id="change-password-form" onsubmit="handleChangePassword(event)">
-      <div class="form-group">
-        <label class="form-label">Senha Atual</label>
-        <input type="password" id="senha-atual" class="form-input" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Nova Senha</label>
-        <input type="password" id="nova-senha" class="form-input" minlength="8" required>
-        <small style="color: var(--text-muted); font-size: 11px; margin-top: 4px; display: block;">Mínimo de 8 caracteres.</small>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Confirmar Nova Senha</label>
-        <input type="password" id="confirmar-nova-senha" class="form-input" minlength="8" required>
-      </div>
-    </form>
-  `;
-  const footer = `
-    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-    <button class="btn btn-primary" onclick="document.getElementById('change-password-form').requestSubmit()">Salvar Senha</button>
-  `;
-  openModal('Trocar Minha Senha', content, footer);
 }
 
-async function handleChangePassword(event) {
-  event.preventDefault();
-  const senhaAtual = document.getElementById('senha-atual').value;
-  const novaSenha = document.getElementById('nova-senha').value;
-  const confirmarSenha = document.getElementById('confirmar-nova-senha').value;
-
-  if (novaSenha !== confirmarSenha) {
-    showToast('A nova senha e a confirmação não coincidem.', 'error');
-    return;
-  }
-
-  const payload = {
-    senhaAtual: senhaAtual,
-    novaSenha: novaSenha
+async function saveUser(id) {
+  const data = {
+    nome: document.getElementById('edit-user-nome').value,
+    username: document.getElementById('edit-user-username').value,
+    password: document.getElementById('edit-user-password').value || null,
+    perfil: document.getElementById('edit-user-profile').value,
+    ativo: document.getElementById('edit-user-ativo').value === 'true'
   };
 
   try {
-    const btn = document.querySelector('#modal-footer .btn-primary');
-    if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
-    
-    // A API retorna NO_CONTENT (204) então o apiPut já lida com isso.
-    await apiPut('/usuarios/me/senha', payload);
-    
-    showToast('Senha alterada com sucesso! Você será desconectado.', 'success');
+    await apiPut(`/usuarios/${id}`, data);
+    showToast('Usuário atualizado com sucesso.', 'success');
     closeModal();
-    
-    // Força o logout para obrigar o uso da nova senha
-    setTimeout(() => {
-      handleLogout();
-    }, 2000);
+    loadUsuarios();
   } catch (err) {
-    const btn = document.querySelector('#modal-footer .btn-primary');
-    if (btn) { btn.disabled = false; btn.textContent = 'Salvar Senha'; }
-    showToast(err.message || 'Erro ao alterar a senha.', 'error');
+    showToast(err.message, 'error');
   }
 }
 
-// --- UTILITÁRIOS DE MÁSCARA ---
-function applyDocumentoMask(input) {
-  let value = input.value.replace(/\D/g, '');
-  if (value.length > 14) value = value.slice(0, 14);
-  
-  if (value.length <= 11) {
-    if (value.length > 9) {
-      value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    } else if (value.length > 6) {
-      value = value.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
-    } else if (value.length > 3) {
-      value = value.replace(/(\d{3})(\d{0,3})/, '$1.$2');
-    }
+// --- INFRAESTRUTURA ---
+async function loadInfraestrutura() {
+  const container = document.getElementById('infraestrutura-content');
+  if (!container) return;
+  container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Conectando ao Supabase...</div>';
+  try {
+    const infra = await apiGet('/infra/stack');
+    const db = infra.database || {};
+    const rt = infra.runtime || {};
+    const app = infra.application || {};
+    const access = infra.access || {};
+    const tables = infra.databaseTables || [];
+
+    // Agrupar tabelas por schema
+    const bySchema = {};
+    tables.forEach(t => {
+      const s = t.schema || 'public';
+      if (!bySchema[s]) bySchema[s] = [];
+      bySchema[s].push(t);
+    });
+
+    // Badge de status da conexão
+    const connStatus = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(52,211,153,0.12);color:#34d399;padding:4px 12px;border-radius:100px;font-size:12px;font-weight:700;">
+      <span style="width:8px;height:8px;background:#34d399;border-radius:50%;box-shadow:0 0 8px #34d399;display:inline-block;"></span> Conectado
+    </span>`;
+
+    const schemaLabels = {
+      public: '📦 Schema Principal (App)',
+      auth: '🔐 Auth (Supabase)',
+      storage: '🗂️ Storage (Supabase)',
+      realtime: '⚡ Realtime (Supabase)',
+      extensions: '🧩 Extensions (PostgreSQL)',
+      vault: '🔒 Vault (Supabase)',
+    };
+
+    const schemaOrder = ['public', 'auth', 'storage', 'realtime', 'vault', 'extensions'];
+    const orderedSchemas = [
+      ...schemaOrder.filter(s => bySchema[s]),
+      ...Object.keys(bySchema).filter(s => !schemaOrder.includes(s))
+    ];
+
+    const tablesHTML = orderedSchemas.map(schema => {
+      const schemaTables = bySchema[schema];
+      const isPrimary = schema === 'public';
+      // Tabelas que o sistema precisa para funcionar
+      const REQUIRED_TABLES = new Set(['produtos', 'movimentacoes_financeiras', 'usuarios_sistema', 'clientes']);
+      return `
+        <div style="margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            ${schemaLabels[schema] || ('🗄️ ' + schema)}
+            <span class="badge badge-neutral">${schemaTables.length} tabela${schemaTables.length > 1 ? 's' : ''}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">
+            ${schemaTables.map(t => {
+              const isRequired = isPrimary && REQUIRED_TABLES.has(t.name);
+              const cardBorder = isRequired ? '1px solid rgba(52,211,153,0.4)' : '1px solid var(--border)';
+              const cardBg = isRequired ? 'rgba(52,211,153,0.05)' : 'rgba(255,255,255,0.02)';
+              const hoverBorder = isRequired ? 'rgba(52,211,153,0.7)' : 'var(--border-hover)';
+              return `
+              <div style="padding:12px 14px;border:${cardBorder};border-radius:12px;background:${cardBg};transition:border-color 0.2s;position:relative;"
+                   onmouseover="this.style.borderColor='${hoverBorder}'" onmouseout="this.style.borderColor='${isRequired ? 'rgba(52,211,153,0.4)' : 'var(--border)'}'">
+                ${isRequired ? `
+                  <div style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:4px;background:rgba(52,211,153,0.12);color:#34d399;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;">
+                    <span style="width:6px;height:6px;background:#34d399;border-radius:50%;box-shadow:0 0 6px #34d399;display:inline-block;"></span>
+                    Necessária
+                  </div>` : ''}
+                <div style="font-weight:700;font-size:13px;color:${isRequired ? '#34d399' : 'var(--text-primary)'};margin-bottom:4px;padding-right:${isRequired ? '80px' : '0'};">
+                  ${isPrimary ? (t.friendlyName || t.name) : t.name}
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;font-family:monospace;">${t.name}</div>
+                <div style="font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center;">
+                  <span>${t.columns} colunas</span>
+                  ${t.businessArea ? `<span class="badge badge-neutral" style="font-size:10px;">${t.businessArea}</span>` : ''}
+                </div>
+                ${t.plainPurpose && isPrimary ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;font-style:italic;">${t.plainPurpose}</div>` : ''}
+                ${t.dependsOn && t.dependsOn.length > 0 ? `
+                  <div style="margin-top:8px;font-size:10px;color:var(--text-muted);">
+                    🔗 Depende de: ${t.dependsOn.map(d => `<code style="font-size:10px;">${d.replace('public.','')}</code>`).join(', ')}
+                  </div>` : ''}
+              </div>
+            `}).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <!-- Linha 1: Conexão + Runtime -->
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px;">
+
+        <!-- Conexão Supabase -->
+        <div class="card" style="padding:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+            <div>
+              <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;font-weight:700;margin-bottom:6px;">🌐 Banco de Dados</div>
+              <div style="font-size:18px;font-weight:800;color:var(--text-primary);">${db.engine || 'PostgreSQL'} <span style="font-size:13px;color:var(--text-muted);font-weight:500;">(${db.mode || 'Supabase Cloud'})</span></div>
+            </div>
+            ${connStatus}
+          </div>
+          <div style="display:grid;gap:8px;">
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border);">
+              <span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;min-width:64px;padding-top:2px;">URL</span>
+              <code style="font-size:11px;color:var(--accent-info);word-break:break-all;line-height:1.5;">${db.url || '-'}</code>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div style="padding:10px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border);">
+                <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;margin-bottom:4px;">Usuário DB</div>
+                <div style="font-size:13px;color:var(--text-primary);font-weight:600;">${db.username || '-'}</div>
+              </div>
+              <div style="padding:10px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border);">
+                <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;margin-bottom:4px;">Porta HTTP</div>
+                <div style="font-size:13px;color:var(--text-primary);font-weight:600;">:${access.httpPort || '8085'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Runtime -->
+        <div class="card" style="padding:20px;">
+          <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;font-weight:700;margin-bottom:16px;">⚙️ Runtime</div>
+          <div style="display:grid;gap:8px;">
+            ${[
+              ['Aplicação', app.displayName || app.name],
+              ['Java', rt.javaVersion],
+              ['Spring Boot', rt.springBootVersion],
+              ['Tomcat', rt.tomcatVersion],
+              ['SO', rt.operatingSystem],
+              ['Arch', rt.architecture],
+            ].map(([label, value]) => `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:8px;border:1px solid var(--border);">
+                <span style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">${label}</span>
+                <span style="font-size:12px;color:var(--text-secondary);font-weight:600;">${value || '-'}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Linha 2: Mapa de Tabelas -->
+      <div class="card" style="padding:20px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <div>
+            <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;font-weight:700;margin-bottom:4px;">🗄️ Mapa de Tabelas</div>
+            <div style="font-size:13px;color:var(--text-secondary);">${tables.length} tabelas encontradas no banco Supabase</div>
+          </div>
+          <span class="badge badge-success">${tables.length} tabelas</span>
+        </div>
+        ${tablesHTML || '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Nenhuma tabela encontrada</div></div>'}
+      </div>
+
+      <!-- Linha 3: Logs SQL -->
+      <div class="card" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;font-weight:700;">📡 Logs SQL em Tempo Real</div>
+          <span class="badge badge-neutral" style="animation:pulse 2s infinite;">AO VIVO</span>
+        </div>
+        <div id="live-sql-logs" style="font-family:monospace;font-size:11px;background:rgba(0,0,0,0.4);color:#34d399;padding:14px;min-height:160px;max-height:260px;overflow:auto;border-radius:10px;border:1px solid var(--border);line-height:1.8;">
+          <span style="color:var(--text-muted);">Aguardando queries...</span>
+        </div>
+      </div>
+    `;
+    startSqlLogsPolling();
+  } catch (err) {
+    container.innerHTML = `
+      <div class="card" style="padding:32px;text-align:center;">
+        <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
+        <div style="font-size:16px;font-weight:700;color:var(--accent-danger);margin-bottom:8px;">Erro ao conectar à API de Infraestrutura</div>
+        <div style="font-size:13px;color:var(--text-muted);">${escapeHtml(err.message)}</div>
+        <button class="btn btn-ghost" style="margin-top:20px;" onclick="loadInfraestrutura()">Tentar novamente</button>
+      </div>
+    `;
+  }
+}
+
+function startSqlLogsPolling() {
+  if (window.sqlLogsInterval) clearInterval(window.sqlLogsInterval);
+  window.sqlLogsInterval = setInterval(async () => {
+    try {
+      const logs = await apiGet('/infra/sql-logs');
+      const el = document.getElementById('live-sql-logs');
+      if (el) el.innerHTML = logs.map(l => `<div>[${l.timestamp}] ${escapeHtml(l.sql)}</div>`).join('');
+    } catch (e) {}
+  }, 2000);
+}
+
+// --- SECURITY & SESSION ---
+function isAuthenticated() { return sessionStorage.getItem('authA3') === 'true'; }
+function isAdmin() { return ['ADMIN', 'SUPERUSER'].includes(sessionStorage.getItem('authRoleA3')); }
+function isSuperuser() { return sessionStorage.getItem('authRoleA3') === 'SUPERUSER'; }
+
+function getCurrentUser() {
+  return {
+    id: sessionStorage.getItem('authUserIdA3'),
+    username: sessionStorage.getItem('authUserA3'),
+    perfil: sessionStorage.getItem('authRoleA3'),
+    nome: sessionStorage.getItem('authNameA3')
+  };
+}
+
+function setCurrentUser(u) {
+  sessionStorage.setItem('authA3', 'true');
+  sessionStorage.setItem('authUserIdA3', u.id);
+  sessionStorage.setItem('authUserA3', u.username);
+  sessionStorage.setItem('authRoleA3', u.perfil);
+  sessionStorage.setItem('authNameA3', u.nome || u.username);
+}
+function clearCurrentUser() {
+  sessionStorage.clear();
+}
+
+async function handleLogin() {
+  const username = document.getElementById('login-user').value;
+  const password = document.getElementById('login-pass').value;
+  try {
+    const user = await apiPost('/auth/login', { username, password });
+    setCurrentUser(user);
+    window.location.reload();
+  } catch (err) {
+    const errEl = document.getElementById('login-error');
+    if (errEl) { errEl.textContent = err.message; errEl.style.display = 'block'; }
+  }
+}
+
+async function handleLogout() {
+  try { await apiPost('/auth/logout', {}); } finally { clearCurrentUser(); window.location.reload(); }
+}
+
+function applyRoleAccessControl() {
+  const superuser = isSuperuser();
+  const admin = isAdmin();
+
+  const menuUsuarios = document.getElementById('menu-usuarios');
+  const menuInfra = document.getElementById('menu-infra');
+
+  if (menuUsuarios) menuUsuarios.style.display = superuser ? '' : 'none';
+  if (menuInfra) menuInfra.style.display = superuser ? '' : 'none';
+}
+
+async function initializeAuthenticatedApp() {
+  try {
+    const me = await apiGet('/auth/me');
+    setCurrentUser(me);
+    applyRoleAccessControl();
+    loadDashboard();
+  } catch (e) {
+    clearCurrentUser();
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('secure-app').style.display = 'none';
+  }
+}
+
+// --- INITIALIZATION ---
+document.addEventListener('DOMContentLoaded', () => {
+  if (isAuthenticated()) {
+    initializeAuthenticatedApp();
   } else {
-    value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
-    if (value.indexOf('-') === -1) {
-      if (value.length > 12) {
-        value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})/, '$1.$2.$3/$4-');
-      } else if (value.length > 8) {
-        value = value.replace(/^(\d{2})(\d{3})(\d{3})/, '$1.$2.$3/');
-      } else if (value.length > 5) {
-        value = value.replace(/^(\d{2})(\d{3})/, '$1.$2.');
-      } else if (value.length > 2) {
-        value = value.replace(/^(\d{2})/, '$1.');
-      }
-    }
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('secure-app').style.display = 'none';
   }
-  input.value = value;
-}
+});
 
-function applyPhoneMask(input) {
-  let value = input.value.replace(/\D/g, '');
-  if (value.length > 11) value = value.slice(0, 11);
-  if (value.length > 10) {
-    value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
-  } else if (value.length > 6) {
-    value = value.replace(/^(\d{2})(\d{4,5})(\d{0,4}).*/, '($1) $2-$3');
-  } else if (value.length > 2) {
-    value = value.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
-  } else if (value.length > 0) {
-    value = value.replace(/^(\d*)/, '($1');
-  }
-  input.value = value;
+function checkSystemHealth() {
+  apiGet('/health').then(h => {
+    const dot = document.getElementById('status-dot');
+    if (dot) dot.style.background = (h.api === 'ONLINE' && h.database === 'ONLINE') ? '#10b981' : '#f59e0b';
+  }).catch(() => {
+    const dot = document.getElementById('status-dot');
+    if (dot) dot.style.background = '#ef4444';
+  });
 }
+setInterval(checkSystemHealth, 30000);

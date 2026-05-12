@@ -428,6 +428,65 @@ body.sidebar-open .top-menu {
   opacity: 0.8;
 }
 
+/* ─── Dashboard Charts ─── */
+.chart-container-row {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.chart-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  transition: border-color var(--transition);
+}
+
+.chart-card:hover {
+  border-color: var(--border-hover);
+}
+
+.chart-card h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 260px;
+}
+
+.canvas-wrapper canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.doughnut-chart-card .canvas-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+}
+
+.doughnut-chart-card .canvas-wrapper canvas {
+  max-width: 240px !important;
+  max-height: 240px !important;
+}
+
+@media (max-width: 768px) {
+  .chart-container-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ─── Cards / Panels ─── */
 .card {
   background: var(--bg-card);

@@ -7,6 +7,8 @@ import org.springframework.data.repository.query.Param;
 import br.com.a3.model.Cliente;
 
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
+    List<Cliente> findAllByOrderByNomeAsc();
+
     @Query("SELECT c FROM Cliente c WHERE c.usuario.id = :usuarioId ORDER BY c.nome ASC")
     List<Cliente> findAllByUsuarioIdOrderByNomeAsc(@Param("usuarioId") Long usuarioId);
 }

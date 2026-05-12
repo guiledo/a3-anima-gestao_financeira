@@ -15,10 +15,13 @@ public class ClienteService {
 
     private final ClienteRepository clienteRepository;
     private final UsuarioSistemaService usuarioSistemaService;
+    private final br.com.a3.repository.MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository;
 
-    public ClienteService(ClienteRepository clienteRepository, UsuarioSistemaService usuarioSistemaService) {
+    public ClienteService(ClienteRepository clienteRepository, UsuarioSistemaService usuarioSistemaService,
+                          br.com.a3.repository.MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository) {
         this.clienteRepository = clienteRepository;
         this.usuarioSistemaService = usuarioSistemaService;
+        this.movimentacaoFinanceiraRepository = movimentacaoFinanceiraRepository;
     }
 
     public ClienteResponse criar(ClienteRequest request) {
@@ -30,11 +33,7 @@ public class ClienteService {
 
     @Transactional(readOnly = true)
     public List<ClienteResponse> listar() {
-        var usuario = usuarioSistemaService.getUsuarioLogado();
-        if (usuario == null) return java.util.Collections.emptyList();
-        
-        Long usuarioId = usuario.getId();
-        return clienteRepository.findAllByUsuarioIdOrderByNomeAsc(usuarioId)
+        return clienteRepository.findAllByOrderByNomeAsc()
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -53,6 +52,14 @@ public class ClienteService {
 
     public void excluir(Long id) {
         Cliente cliente = buscarEntidade(id);
+        
+        // Remove vínculo com movimentações financeiras para não violar Foreign Key
+        var movimentacoes = movimentacaoFinanceiraRepository.findAllByClienteEntidadeId(id);
+        for (var mov : movimentacoes) {
+            mov.setClienteEntidade(null);
+            movimentacaoFinanceiraRepository.save(mov);
+        }
+        
         clienteRepository.delete(cliente);
     }
 
@@ -64,9 +71,6 @@ public class ClienteService {
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Cliente com id " + id + " nao encontrado"));
 
-        if (!cliente.getUsuario().getId().equals(usuarioId)) {
-            throw new org.springframework.security.access.AccessDeniedException("Voce nao tem permissao para acessar este cliente.");
-        }
         return cliente;
     }
 

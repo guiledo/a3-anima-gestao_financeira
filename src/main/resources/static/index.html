@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gestão Financeira - A3</title>
   <meta name="description" content="Sistema de gestão financeira, relatórios e visão de infraestrutura">
-  <link rel="stylesheet" href="/style.css?v=20260415-6">
+  <link rel="stylesheet" href="/style.css?v=20260511-charts">
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Ctext x='16' y='21' font-size='13' text-anchor='middle' fill='white' font-family='Arial'%3EA3%3C/text%3E%3C/svg%3E">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -37,8 +37,8 @@
 
       <form class="login-form" onsubmit="event.preventDefault(); handleLogin();">
         <div class="form-group">
-          <label class="form-label">Usuário</label>
-          <input type="text" id="login-user" class="form-input" placeholder="Seu usuário" required>
+          <label class="form-label">Login</label>
+          <input type="text" id="login-user" class="form-input" placeholder="Seu login" required>
         </div>
         <div class="form-group">
           <label class="form-label">Senha</label>
@@ -170,14 +170,14 @@
             <div class="nav-item" data-page="relatorios" onclick="navigateTo('relatorios')">
               Relatórios
             </div>
-            <div class="nav-item" data-page="usuarios" onclick="navigateTo('usuarios')">
-              Usuários
+            <div class="nav-item" data-page="usuarios" onclick="navigateTo('usuarios')" id="menu-usuarios">
+              Gestão de Acessos
             </div>
             <div class="nav-item" data-page="historico" onclick="navigateTo('historico')">
               Histórico
             </div>
-            <div class="nav-item" data-page="infraestrutura" onclick="navigateTo('infraestrutura')">
-              Ferramentas do Desenvolvedor
+            <div class="nav-item" data-page="infraestrutura" onclick="navigateTo('infraestrutura')" id="menu-infra">
+              Gestão de Infra (Supabase)
             </div>
           </nav>
 
@@ -235,9 +235,9 @@
           <div class="page-header">
             <div>
               <h1 class="page-title">Produtos</h1>
-              <p class="page-subtitle">Gerencie seu catálogo de produtos</p>
+              <p class="page-subtitle">Catálogo central e controle de estoque</p>
             </div>
-            <button class="btn btn-primary" onclick="openProdutoModal()">Novo Produto</button>
+            <button class="btn btn-primary" id="btn-novo-produto" onclick="openProdutoModal()">Novo Produto</button>
           </div>
 
           <div class="card">
@@ -334,7 +334,7 @@
           <div class="page-header">
             <div>
               <h1 class="page-title">Relatórios</h1>
-              <p class="page-subtitle">Análises financeiras e de produtos</p>
+              <p class="page-subtitle">Análises financeiras, estoque e desempenho por vendedor</p>
             </div>
           </div>
 
@@ -367,13 +367,15 @@
               </div>
             </div>
           </div>
+
+          <div class="report-section" id="relatorio-usuarios-content"></div>
         </section>
 
         <section class="page" id="page-usuarios">
           <div class="page-header">
             <div>
-              <h1 class="page-title">Usuários</h1>
-              <p class="page-subtitle">Cadastro e gerenciamento de usuários (somente superusuário)</p>
+              <h1 class="page-title">Vendedores e Acessos</h1>
+              <p class="page-subtitle">Cadastro e gerenciamento de vendedores e acessos do sistema (somente superusuário)</p>
             </div>
             <button class="btn btn-ghost" onclick="loadUsuarios()">Atualizar</button>
           </div>
@@ -381,15 +383,15 @@
           <div class="grid-2">
             <div class="card">
               <div class="card-header">
-                <div class="card-title">Criar novo usuário</div>
-                <div class="card-subtitle">Defina o perfil e o nível de acesso de cada usuário</div>
+                <div class="card-title">Criar novo acesso</div>
+                <div class="card-subtitle">Defina o perfil e o nível de acesso de cada vendedor ou gestor</div>
               </div>
 
               <form class="form" onsubmit="event.preventDefault(); handleCreateUser();">
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">Usuário</label>
-                    <input class="form-input" id="new-user-username" type="text" placeholder="ex: funcionario02"
+                    <label class="form-label">Login</label>
+                    <input class="form-input" id="new-user-username" type="text" placeholder="ex: vendedor7"
                       required>
                   </div>
                   <div class="form-group">
@@ -400,7 +402,7 @@
 
                 <div class="form-group">
                   <label class="form-label">Nome (opcional)</label>
-                  <input class="form-input" id="new-user-name" type="text" placeholder="Nome do funcionário">
+                  <input class="form-input" id="new-user-name" type="text" placeholder="Nome do vendedor">
                 </div>
 
                 <div class="form-group">
@@ -408,25 +410,25 @@
                   <select class="form-select" id="new-user-profile" required>
                     <option value="USER">Vendedor - gerencia próprias vendas</option>
                     <option value="ADMIN">Administrador - gerencia dados</option>
-                    <option value="SUPERUSER">Superusuário - gerencia usuários</option>
+                    <option value="SUPERUSER">Superusuário - gerencia acessos</option>
                   </select>
                 </div>
 
                 <div class="form-actions">
-                  <button type="submit" class="btn btn-primary">Criar usuário</button>
+                  <button type="submit" class="btn btn-primary">Criar acesso</button>
                 </div>
               </form>
             </div>
 
             <div class="card">
               <div class="card-header">
-                <div class="card-title">Lista de usuários</div>
-                <div class="card-subtitle">Usuários cadastrados no banco do Supabase</div>
+                <div class="card-title">Lista de acessos</div>
+                <div class="card-subtitle">Vendedores e gestores cadastrados no banco do Supabase</div>
               </div>
 
               <div id="usuarios-list" class="user-list">
                 <div class="loading-overlay">
-                  <div class="spinner"></div> Carregando usuários...
+                  <div class="spinner"></div> Carregando acessos...
                 </div>
               </div>
             </div>
@@ -482,7 +484,7 @@
         <section class="page" id="page-infraestrutura">
           <div class="page-header">
             <div>
-              <h1 class="page-title">Ferramentas do Desenvolvedor</h1>
+              <h1 class="page-title">Gestão de Infra (Supabase)</h1>
               <p class="page-subtitle">Stack da aplicação, conexões, banco e endpoints publicados</p>
             </div>
             <button class="btn btn-ghost" onclick="loadInfraestrutura()">Atualizar</button>
@@ -512,7 +514,7 @@
 
   </div> <!-- Fechamento da secure-app -->
 
-  <script src="/app.js?v=20260430-FIX"></script>
+  <script src="/app.js?v=20260511-RELATORIOS"></script>
   <script>
     (function () {
       const canvas = document.getElementById('global-bg-canvas');
