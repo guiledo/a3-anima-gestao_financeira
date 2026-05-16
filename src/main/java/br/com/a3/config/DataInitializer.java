@@ -22,6 +22,7 @@ import br.com.a3.repository.ProdutoRepository;
 import br.com.a3.repository.UsuarioSistemaRepository;
 import br.com.a3.service.UsuarioSistemaService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @Component
 public class DataInitializer implements ApplicationRunner {
@@ -31,6 +32,7 @@ public class DataInitializer implements ApplicationRunner {
     private final UsuarioSistemaRepository usuarioSistemaRepository;
     private final UsuarioSistemaService usuarioSistemaService;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
     private final boolean seedEnabled;
 
     public DataInitializer(
@@ -39,18 +41,22 @@ public class DataInitializer implements ApplicationRunner {
             UsuarioSistemaRepository usuarioSistemaRepository,
             UsuarioSistemaService usuarioSistemaService,
             PasswordEncoder passwordEncoder,
+            JdbcTemplate jdbcTemplate,
             @Value("${app.seed.enabled:true}") boolean seedEnabled) {
         this.produtoRepository = produtoRepository;
         this.movimentacaoFinanceiraRepository = movimentacaoFinanceiraRepository;
         this.usuarioSistemaRepository = usuarioSistemaRepository;
         this.usuarioSistemaService = usuarioSistemaService;
         this.passwordEncoder = passwordEncoder;
+        this.jdbcTemplate = jdbcTemplate;
         this.seedEnabled = seedEnabled;
     }
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        executarMigracaoEnums();
+
         if (!seedEnabled) {
             return;
         }
@@ -74,21 +80,40 @@ public class DataInitializer implements ApplicationRunner {
             LocalDate hoje = LocalDate.now();
 
             movimentacaoFinanceiraRepository.saveAll(List.of(
-                    movimentacao(TipoMovimentacao.ENTRADA, "13600.00", hoje,
+                    movimentacao(TipoMovimentacao.VENDA, "13600.00", hoje,
                             "Venda de 2 Notebooks", "Empresa Horizon", "Vendas",
                             TipoPagamento.PARCELADO, 4, hoje, admin),
-                    movimentacao(TipoMovimentacao.SAIDA, "3500.00", hoje,
+                    movimentacao(TipoMovimentacao.COMPRA, "3500.00", hoje,
                             "Pagamento de Fornecedor Logitech", "Fornecedor Logitech", "Fornecedores",
                             TipoPagamento.AVISTA, 1, hoje, admin),
-                    movimentacao(TipoMovimentacao.ENTRADA, "1250.00", hoje,
+                    movimentacao(TipoMovimentacao.VENDA, "1250.00", hoje,
                             "Venda 1 Monitor LG", "Studio Aurora", "Vendas",
                             TipoPagamento.AVISTA, 1, hoje, admin),
-                    movimentacao(TipoMovimentacao.SAIDA, "850.00", hoje,
+                    movimentacao(TipoMovimentacao.COMPRA, "850.00", hoje,
                             "Conta de Energia", "Concessionaria de Energia", "Despesas Operacionais",
                             TipoPagamento.AVISTA, 1, hoje, admin),
-                    movimentacao(TipoMovimentacao.ENTRADA, "2250.00", hoje,
+                    movimentacao(TipoMovimentacao.VENDA, "2250.00", hoje,
                             "Venda 3 Teclados Keychron", "Agencia Polaris", "Vendas",
                             TipoPagamento.PARCELADO, 3, hoje, admin)));
+        }
+    }
+
+    private void executarMigracaoEnums() {
+        try {
+            // Drop constraint if it exists (names can vary, but this is the one from the error)
+            try {
+                jdbcTemplate.execute("ALTER TABLE movimentacoes_financeiras DROP CONSTRAINT IF EXISTS movimentacoes_financeiras_tipo_check");
+            } catch (Exception e) {
+                System.out.println(">>> INFO: Falha ao remover constraint (pode ja ter sido removida): " + e.getMessage());
+            }
+
+            int entradasMigradas = jdbcTemplate.update("UPDATE movimentacoes_financeiras SET tipo = 'VENDA' WHERE tipo = 'ENTRADA'");
+            int saidasMigradas = jdbcTemplate.update("UPDATE movimentacoes_financeiras SET tipo = 'COMPRA' WHERE tipo = 'SAIDA'");
+            if (entradasMigradas > 0 || saidasMigradas > 0) {
+                System.out.println(">>> MIGRACAO: " + entradasMigradas + " ENTRADAS -> VENDA, " + saidasMigradas + " SAIDAS -> COMPRA.");
+            }
+        } catch (Exception e) {
+            System.err.println(">>> ERRO NA MIGRACAO DE ENUMS: " + e.getMessage());
         }
     }
 

@@ -43,6 +43,9 @@ class ApiIntegrationTest {
     @Autowired
     private MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private br.com.a3.repository.UsuarioSistemaRepository usuarioSistemaRepository;
+
     private String sessionCookie;
 
     @BeforeEach
@@ -87,7 +90,7 @@ class ApiIntegrationTest {
     void deveCriarMovimentacaoFinanceiraComSucesso() throws Exception {
         String requestBody = """
                 {
-                  "tipo": "ENTRADA",
+                  "tipo": "VENDA",
                   "valor": 1500.00,
                   "data": "%s",
                   "descricao": "Venda do dia",
@@ -104,7 +107,7 @@ class ApiIntegrationTest {
         assertEquals(201, respostaCriacao.statusCode());
         JsonNode movimentacaoCriada = objectMapper.readTree(respostaCriacao.body());
         assertTrue(movimentacaoCriada.get("id").isNumber());
-        assertEquals("ENTRADA", movimentacaoCriada.get("tipo").asText());
+        assertEquals("VENDA", movimentacaoCriada.get("tipo").asText());
         assertEquals(1500.0, movimentacaoCriada.get("valor").asDouble());
         assertEquals("Cliente XPTO", movimentacaoCriada.get("cliente").asText());
         assertEquals("Vendas", movimentacaoCriada.get("categoria").asText());
@@ -148,7 +151,7 @@ class ApiIntegrationTest {
         produtoRepository.save(criarProduto("Teclado Antigo", "Perifericos", "40.00", "50.00", 2, false));
 
         movimentacaoFinanceiraRepository.save(criarMovimentacao(
-                TipoMovimentacao.ENTRADA,
+                TipoMovimentacao.VENDA,
                 "1000.00",
                 "Recebimento",
                 "Cliente A",
@@ -156,7 +159,7 @@ class ApiIntegrationTest {
                 1,
                 LocalDate.now()));
         movimentacaoFinanceiraRepository.save(criarMovimentacao(
-                TipoMovimentacao.SAIDA,
+                TipoMovimentacao.COMPRA,
                 "250.00",
                 "Compra de estoque",
                 "Fornecedor B",
@@ -180,7 +183,7 @@ class ApiIntegrationTest {
     @Test
     void deveGerarFechamentoPorClienteNoRelatorioFinanceiro() throws Exception {
         movimentacaoFinanceiraRepository.save(criarMovimentacao(
-                TipoMovimentacao.ENTRADA,
+                TipoMovimentacao.VENDA,
                 "300.00",
                 "Servico recorrente",
                 "Cliente Alfa",
@@ -188,7 +191,7 @@ class ApiIntegrationTest {
                 3,
                 LocalDate.of(2026, 4, 10)));
         movimentacaoFinanceiraRepository.save(criarMovimentacao(
-                TipoMovimentacao.ENTRADA,
+                TipoMovimentacao.VENDA,
                 "100.00",
                 "Taxa unica",
                 "Cliente Alfa",
@@ -196,7 +199,7 @@ class ApiIntegrationTest {
                 1,
                 LocalDate.of(2026, 4, 15)));
         movimentacaoFinanceiraRepository.save(criarMovimentacao(
-                TipoMovimentacao.ENTRADA,
+                TipoMovimentacao.VENDA,
                 "200.00",
                 "Projeto especial",
                 "Cliente Beta",
@@ -278,6 +281,7 @@ class ApiIntegrationTest {
     }
 
     private Produto criarProduto(String nome, String categoria, String custo, String preco, int estoque, boolean ativo) {
+        br.com.a3.model.UsuarioSistema usuario = usuarioSistemaRepository.findByUsernameIgnoreCase("a3_admin_2026").orElseThrow();
         Produto produto = new Produto();
         produto.setNome(nome);
         produto.setCategoria(categoria);
@@ -285,11 +289,12 @@ class ApiIntegrationTest {
         produto.setPreco(new BigDecimal(preco));
         produto.setEstoque(estoque);
         produto.setAtivo(ativo);
+        produto.setUsuario(usuario);
         return produto;
     }
 
-    private MovimentacaoFinanceira criarMovimentacao(TipoMovimentacao tipo, String valor, String descricao,
-            String cliente, TipoPagamento tipoPagamento, int quantidadeParcelas, LocalDate dataPrimeiroVencimento) {
+    private MovimentacaoFinanceira criarMovimentacao(TipoMovimentacao tipo, String valor, String descricao, String cliente, TipoPagamento tipoPagamento, int quantidadeParcelas, LocalDate dataPrimeiroVencimento) {
+        br.com.a3.model.UsuarioSistema usuario = usuarioSistemaRepository.findByUsernameIgnoreCase("a3_admin_2026").orElseThrow();
         MovimentacaoFinanceira movimentacao = new MovimentacaoFinanceira();
         movimentacao.setTipo(tipo);
         movimentacao.setValor(new BigDecimal(valor));
@@ -300,6 +305,7 @@ class ApiIntegrationTest {
         movimentacao.setTipoPagamento(tipoPagamento);
         movimentacao.setQuantidadeParcelas(quantidadeParcelas);
         movimentacao.setDataPrimeiroVencimento(dataPrimeiroVencimento);
+        movimentacao.setUsuario(usuario);
         return movimentacao;
     }
 }

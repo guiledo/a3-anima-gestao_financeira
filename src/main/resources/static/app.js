@@ -264,15 +264,15 @@ async function loadDashboard() {
     window.currentDashboardData = { ...data, saldoAtual: saldo };
 
     grid.innerHTML = `
-      <div class="kpi-card" data-color="emerald" data-action="filter-mov" data-type="ENTRADA">
-        <div class="kpi-label">📈 Total Entradas</div>
+      <div class="kpi-card" data-color="emerald" data-action="filter-mov" data-type="VENDA">
+        <div class="kpi-label">📈 Total Vendas</div>
         <div class="kpi-value text-success">${formatCurrency(data.totalEntradas)}</div>
-        <div class="kpi-hint">↗ Ver movimentações</div>
+        <div class="kpi-hint">↗ Ver vendas</div>
       </div>
-      <div class="kpi-card" data-color="red" data-action="filter-mov" data-type="SAIDA">
-        <div class="kpi-label">📉 Total Saídas</div>
+      <div class="kpi-card" data-color="red" data-action="filter-mov" data-type="COMPRA">
+        <div class="kpi-label">📉 Total Compras</div>
         <div class="kpi-value text-danger">${formatCurrency(data.totalSaidas)}</div>
-        <div class="kpi-hint">↗ Ver movimentações</div>
+        <div class="kpi-hint">↗ Ver compras</div>
       </div>
       <div class="kpi-card" data-color="${saldoColor}" data-action="show-saldo">
         <div class="kpi-label">💰 Saldo Atual</div>
@@ -283,6 +283,11 @@ async function loadDashboard() {
         <div class="kpi-label">📦 Produtos Ativos</div>
         <div class="kpi-value">${data.totalProdutosAtivos ?? 0}</div>
         <div class="kpi-hint">↗ Ver produtos</div>
+      </div>
+      <div class="kpi-card" data-color="amber" data-action="show-produtos">
+        <div class="kpi-label">📦 Total em Estoque</div>
+        <div class="kpi-value">${data.totalItensEmEstoque ?? 0}</div>
+        <div class="kpi-hint">↗ Soma de todos os itens</div>
       </div>
     `;
 
@@ -296,8 +301,75 @@ async function loadDashboard() {
     });
 
     renderDashboardCharts(data);
+    checkEstoqueBaixo();
   } catch (err) {
     grid.innerHTML = buildEmptyState('Erro ao carregar dashboard', err.message);
+  }
+}
+
+async function checkEstoqueBaixo() {
+  if (typeof isAdmin !== 'function' || !isAdmin()) return;
+
+  const bell = document.getElementById('notification-bell');
+  if (bell) bell.style.display = 'block'; // Mostra o sininho para admins
+
+  try {
+    const produtos = await apiGet('/produtos');
+    const esgotados = produtos.filter(p => p.estoque === 0 && p.ativo);
+
+    const badge = document.getElementById('notification-badge');
+    if (badge) {
+      if (esgotados.length > 0) {
+        badge.textContent = esgotados.length;
+        badge.style.display = 'block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    window.esgotados = esgotados;
+
+    if (esgotados.length > 0) {
+      const msg = `⚠️ Aviso de Estoque: Você tem ${esgotados.length} produto(s) com estoque ZERADO! Lembre-se de solicitar reposição.`;
+      showToast(msg, 'error');
+    }
+  } catch (err) {
+    console.error('Erro ao verificar estoque baixo', err);
+  }
+}
+
+window.showNotifications = function () {
+  try {
+    if (typeof isAdmin !== 'function' || !isAdmin()) {
+      showToast('Acesso negado', 'error');
+      return;
+    }
+    const esgotados = window.esgotados || [];
+    let html = '';
+    if (esgotados.length === 0) {
+      html = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">Nenhum aviso no momento. Tudo certo com o estoque!</div>';
+    } else {
+      html = `
+        <div style="padding: 10px;">
+          <h4 style="color: var(--accent-danger); margin-bottom: 10px;">⚠️ Produtos Zerados (${esgotados.length})</h4>
+          <ul style="list-style: none; padding: 0; margin: 0; max-height: 250px; overflow-y: auto;">
+            ${esgotados.map(p => `
+              <li style="padding: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <span><strong>${escapeHtml(p?.nome || 'Desconhecido')}</strong> <small>(${escapeHtml(p?.categoria || '')})</small></span>
+                <span class="badge badge-danger">ESTOQUE 0</span>
+              </li>
+            `).join('')}
+          </ul>
+          <div style="margin-top: 15px; text-align: right;">
+            <button class="btn btn-primary" onclick="navigateTo('produtos'); closeModal();">Ir para Produtos</button>
+          </div>
+        </div>
+      `;
+    }
+    openModal('Central de Avisos', html, '<button class="btn btn-ghost" onclick="closeModal()">Fechar</button>');
+  } catch (e) {
+    console.error("Erro ao abrir notificações:", e);
+    alert("Erro interno ao abrir o aviso: " + e.message);
   }
 }
 
@@ -307,11 +379,11 @@ async function showSaldoDrilldown() {
   const html = `
     <div style="display: grid; gap: 16px;">
       <div class="card" style="padding: 16px; background: rgba(52, 211, 153, 0.05); border-color: var(--accent-success);">
-        <div style="font-size: 12px; color: var(--text-muted);">TOTAL ENTRADAS</div>
+        <div style="font-size: 12px; color: var(--text-muted);">TOTAL VENDAS</div>
         <div style="font-size: 20px; font-weight: 800; color: var(--accent-success);">${formatCurrency(d.totalEntradas)}</div>
       </div>
       <div class="card" style="padding: 16px; background: rgba(248, 113, 113, 0.05); border-color: var(--accent-danger);">
-        <div style="font-size: 12px; color: var(--text-muted);">TOTAL SAÍDAS</div>
+        <div style="font-size: 12px; color: var(--text-muted);">TOTAL COMPRAS</div>
         <div style="font-size: 20px; font-weight: 800; color: var(--accent-danger);">${formatCurrency(d.totalSaidas)}</div>
       </div>
       <div style="text-align: center; padding-top: 8px; border-top: 1px solid var(--border);">
@@ -351,7 +423,7 @@ async function showProdutosDrilldown() {
 let chartInstances = {};
 async function renderDashboardCharts(dashData) {
   if (typeof Chart === 'undefined') return;
-  
+
   // Gráfico Doughnut (Balanço Atual)
   const ctxBalance = document.getElementById('balanceChart');
   if (ctxBalance) {
@@ -359,7 +431,7 @@ async function renderDashboardCharts(dashData) {
     chartInstances['balance'] = new Chart(ctxBalance, {
       type: 'doughnut',
       data: {
-        labels: ['Entradas', 'Saídas'],
+        labels: ['Vendas', 'Compras'],
         datasets: [{
           data: [dashData.totalEntradas || 0, dashData.totalSaidas || 0],
           backgroundColor: ['#10b981', '#ef4444'],
@@ -374,13 +446,51 @@ async function renderDashboardCharts(dashData) {
   const ctxFinancial = document.getElementById('financialChart');
   if (ctxFinancial) {
     if (chartInstances['financial']) chartInstances['financial'].destroy();
-    
-    // Simulação ou uso de dados reais de evolução (se houver no dashData)
-    // Se a API não retorna o histórico detalhado, criamos uma projeção visual simples
-    const labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul'];
-    const dataEntradas = [0, 0, 0, 0, 0, 0, dashData.totalEntradas || 0];
-    const dataSaidas = [0, 0, 0, 0, 0, 0, dashData.totalSaidas || 0];
-    
+
+    const filterVal = document.getElementById('chartMonthSelect')?.value || '7days';
+    let labels = [];
+    let dataEntradas = [];
+    let dataSaidas = [];
+
+    if (filterVal === '7days') {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+      }
+      dataEntradas = [0, 0, 0, 0, 0, 0, dashData.totalEntradas || 0];
+      dataSaidas = [0, 0, 0, 0, 0, 0, dashData.totalSaidas || 0];
+    } else {
+      try {
+        const movs = await apiGet('/movimentacoes');
+        const monthsAgo = parseInt(filterVal);
+        const targetDate = new Date();
+        targetDate.setMonth(targetDate.getMonth() - monthsAgo);
+        const targetMonth = targetDate.getMonth();
+        const targetYear = targetDate.getFullYear();
+
+        const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+
+        for (let i = 1; i <= daysInMonth; i++) {
+          labels.push(`${String(i).padStart(2, '0')}/${String(targetMonth + 1).padStart(2, '0')}`);
+          dataEntradas.push(0);
+          dataSaidas.push(0);
+        }
+
+        movs.forEach(m => {
+          if (!m.data) return;
+          const [year, month, day] = m.data.split('-');
+          if (parseInt(year) === targetYear && parseInt(month) - 1 === targetMonth) {
+            const dayIdx = parseInt(day) - 1;
+            if (m.tipo === 'VENDA') dataEntradas[dayIdx] += m.valor;
+            if (m.tipo === 'COMPRA') dataSaidas[dayIdx] += m.valor;
+          }
+        });
+      } catch (err) {
+        console.error('Erro ao buscar movs para grafico', err);
+      }
+    }
+
     chartInstances['financial'] = new Chart(ctxFinancial, {
       type: 'line',
       data: {
@@ -407,9 +517,31 @@ async function renderDashboardCharts(dashData) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'top' } },
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                let label = context.dataset.label || '';
+                if (label) label += ': ';
+                if (context.parsed.y !== null) {
+                  label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y);
+                }
+                return label;
+              }
+            }
+          }
+        },
         scales: {
-          y: { beginAtZero: true, display: false },
+          y: {
+            beginAtZero: true,
+            display: true,
+            ticks: {
+              callback: function (value) {
+                return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(value);
+              }
+            }
+          },
           x: { grid: { display: false } }
         }
       }
@@ -424,13 +556,12 @@ async function loadProdutos() {
   tbody.innerHTML = '<tr><td colspan="8">Carregando...</td></tr>';
   try {
     let produtos = await apiGet('/produtos');
-    // Filtrar apenas produtos ativos para que o "Excluir" realmente faça o item sumir da tela
-    produtos = produtos.filter(p => p.ativo);
-    
+    // Todos os produtos (ativos e inativos) serão exibidos para permitir reativação
+
     document.getElementById('produtos-count').textContent = `${produtos.length} itens`;
     const btnNovo = document.getElementById('btn-novo-produto');
     if (btnNovo) btnNovo.style.display = isAdmin() ? 'inline-block' : 'none';
-    
+
     tbody.innerHTML = produtos.map(p => `
       <tr>
         <td>#${p.id}</td>
@@ -524,10 +655,10 @@ async function loadMovimentacoes() {
   try {
     let movs = await apiGet('/movimentacoes');
     if (window.movTypeFilter) movs = movs.filter(m => m.tipo === window.movTypeFilter);
-    movs.sort((a,b) => b.id - a.id);
+    movs.sort((a, b) => b.id - a.id);
     tbody.innerHTML = movs.map(m => `
       <div class="timeline-item">
-        <div class="timeline-icon ${m.tipo.toLowerCase()}">${m.tipo === 'ENTRADA' ? '+' : '-'}</div>
+        <div class="timeline-icon ${m.tipo.toLowerCase()}">${m.tipo === 'VENDA' ? '+' : '-'}</div>
         <div class="timeline-content" style="border: 1px solid var(--border); padding: 12px; border-radius: 8px;">
           <div style="display:flex; justify-content:space-between;">
             <div>
@@ -536,7 +667,7 @@ async function loadMovimentacoes() {
               <small>Cliente: ${escapeHtml(m.cliente)} | Vendedor: ${escapeHtml(m.vendedorNome || 'Sistema')}</small>
             </div>
             <div style="text-align:right">
-              <strong class="${m.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'}">${formatCurrency(m.valor)}</strong>
+              <strong class="${m.tipo === 'VENDA' ? 'text-success' : 'text-danger'}">${formatCurrency(m.valor)}</strong>
               <br>
               ${isAdmin() ? `<button class="btn btn-ghost btn-sm" onclick="deleteMovimentacao(${m.id})">Excluir</button>` : ''}
             </div>
@@ -547,34 +678,166 @@ async function loadMovimentacoes() {
   } catch (err) { tbody.innerHTML = 'Erro ao carregar.'; }
 }
 
-function openMovimentacaoModal() {
+async function openMovimentacaoModal() {
+  // Carrega produtos ativos do catálogo
+  let produtos = [];
+  try { produtos = (await apiGet('/produtos')).filter(p => p.ativo !== false); } catch (e) { }
+  window.produtosAtivosCache = produtos;
+
+  // Carrega clientes cadastrados
+  let clientes = [];
+  try { clientes = await apiGet('/clientes'); } catch (e) { }
+
+  window.updateProdutoOptions = function() {
+    const tipo = document.getElementById('mov-tipo')?.value || 'VENDA';
+    const select = document.getElementById('mov-produto');
+    if (!select) return;
+    
+    let html = '<option value="">-- Nenhum (sem vínculo de produto) --</option>';
+    
+    if (Array.isArray(window.produtosAtivosCache)) {
+      window.produtosAtivosCache.forEach(p => {
+        const estoqueVal = parseInt(p.estoque) || 0;
+        if (tipo === 'COMPRA' || estoqueVal > 0) {
+          const precoStr = parseFloat(p.preco || 0).toFixed(2);
+          const nomeStr = escapeHtml(p.nome || 'Produto');
+          const catStr = escapeHtml(p.categoria || '');
+          html += '<option value="' + p.id + '" data-preco="' + (p.preco || 0) + '" data-categoria="' + catStr + '" data-nome="' + nomeStr + '" data-estoque="' + estoqueVal + '">' + nomeStr + ' (Estoque: ' + estoqueVal + ' | R$ ' + precoStr + ')</option>';
+        }
+      });
+    }
+    select.innerHTML = html;
+  };
+
+  // Opções de clientes: somente os cadastrados no sistema
+  const clienteOptions = `<option value="">-- Selecione o cliente/fornecedor --</option>` +
+    clientes.map(c => `<option value="${c.id}" data-nome="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}${c.documento ? ' (' + escapeHtml(c.documento) + ')' : ''}</option>`).join('');
+
+  const semClientes = clientes.length === 0
+    ? `<small style="color:var(--accent-danger);display:block;margin-top:6px;">⚠️ Nenhum cliente cadastrado. Vá em <b>Clientes</b> e cadastre primeiro.</small>`
+    : '';
+
+  const isUserVendedor = !isAdmin();
+  const tipoOptions = isUserVendedor 
+    ? `<option value="VENDA">Venda</option>` 
+    : `<option value="VENDA">Venda</option><option value="COMPRA">Compra</option>`;
+
   const body = `
-    <div class="form-group"><label class="form-label">Tipo</label><select id="mov-tipo" class="form-select"><option value="ENTRADA">Entrada</option><option value="SAIDA">Saída</option></select></div>
-    <div class="form-group"><label class="form-label">Cliente</label><input type="text" id="mov-cliente" class="form-input"></div>
-    <div class="form-group"><label class="form-label">Descrição</label><input type="text" id="mov-descricao" class="form-input"></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Valor</label><input type="number" id="mov-valor" class="form-input" step="0.01"></div>
-      <div class="form-group"><label class="form-label">Data</label><input type="date" id="mov-data" class="form-input" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div class="form-group">
+      <label class="form-label">Tipo</label>
+      <select id="mov-tipo" class="form-select" onchange="window.updateProdutoOptions()">
+        ${tipoOptions}
+      </select>
     </div>
-    <div class="form-group"><label class="form-label">Categoria</label><input type="text" id="mov-categoria" class="form-input"></div>
+    <div class="form-group">
+      <label class="form-label">Produto <small style="color:var(--text-muted)">(opcional - selecione para preencher automaticamente)</small></label>
+      <select id="mov-produto" class="form-select" onchange="onProdutoMovChange()"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Quantidade</label>
+        <input type="number" id="mov-quantidade" class="form-input" value="1" min="1" oninput="onQtdMovChange()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Valor Total (R$)</label>
+        <input type="number" id="mov-valor" class="form-input" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cliente / Fornecedor</label>
+      <select id="mov-cliente-select" class="form-select">${clienteOptions}</select>
+      ${semClientes}
+    </div>
+    <div class="form-group"><label class="form-label">Descrição</label><input type="text" id="mov-descricao" class="form-input" placeholder="Descrição breve da movimentação"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Data</label>
+        <input type="date" id="mov-data" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Categoria</label>
+        <input type="text" id="mov-categoria" class="form-input" placeholder="Ex: Vendas, Despesas...">
+      </div>
+    </div>
   `;
   openModal('Nova Movimentação', body, `<button class="btn btn-primary" onclick="saveMovimentacao()">Salvar</button>`);
+  window.updateProdutoOptions();
 }
 
+function onProdutoMovChange() {
+  const sel = document.getElementById('mov-produto');
+  const opt = sel.options[sel.selectedIndex];
+  const preco = parseFloat(opt.dataset.preco || 0);
+  const categoria = opt.dataset.categoria || '';
+  const nome = opt.dataset.nome || '';
+  const qtd = parseInt(document.getElementById('mov-quantidade').value) || 1;
+
+  if (preco > 0) {
+    document.getElementById('mov-valor').value = (preco * qtd).toFixed(2);
+  }
+  if (categoria) document.getElementById('mov-categoria').value = categoria;
+  if (nome) document.getElementById('mov-descricao').value = `Venda de ${nome}`;
+}
+
+function onQtdMovChange() {
+  const sel = document.getElementById('mov-produto');
+  const opt = sel.options[sel.selectedIndex];
+  const preco = parseFloat(opt.dataset.preco || 0);
+  const qtd = parseInt(document.getElementById('mov-quantidade').value) || 1;
+  if (preco > 0) {
+    document.getElementById('mov-valor').value = (preco * qtd).toFixed(2);
+  }
+}
+
+
+
 async function saveMovimentacao() {
+  const dataVal = document.getElementById('mov-data').value;
+  const produtoId = document.getElementById('mov-produto')?.value || null;
+  const quantidade = parseInt(document.getElementById('mov-quantidade')?.value) || 1;
+  const descricao = document.getElementById('mov-descricao').value.trim();
+  const categoria = document.getElementById('mov-categoria').value.trim();
+  const valor = parseFloat(document.getElementById('mov-valor').value) || 0;
+
+  // Resolve cliente direto do select
+  const clienteSelectEl = document.getElementById('mov-cliente-select');
+  const clienteSelectVal = clienteSelectEl?.value || '';
+  let clienteNome = '';
+  let clienteId = null;
+
+  if (clienteSelectVal && clienteSelectVal !== '') {
+    const opt = clienteSelectEl.options[clienteSelectEl.selectedIndex];
+    clienteNome = opt.dataset.nome || opt.text.replace(/\s*\(.*\)$/, '').trim();
+    clienteId = parseInt(clienteSelectVal);
+  }
+
+  if (!clienteNome) { showToast('Selecione o cliente ou fornecedor.', 'error'); return; }
+  if (!descricao) { showToast('Informe a descrição.', 'error'); return; }
+  if (!categoria) { showToast('Informe a categoria.', 'error'); return; }
+  if (valor <= 0) { showToast('Informe um valor válido maior que zero.', 'error'); return; }
+  if (!dataVal) { showToast('Informe a data.', 'error'); return; }
+
   const data = {
     tipo: document.getElementById('mov-tipo').value,
-    cliente: document.getElementById('mov-cliente').value,
-    descricao: document.getElementById('mov-descricao').value,
-    valor: parseFloat(document.getElementById('mov-valor').value) || 0,
-    data: document.getElementById('mov-data').value,
-    categoria: document.getElementById('mov-categoria').value,
+    cliente: clienteNome,
+    descricao: descricao,
+    valor: valor,
+    data: dataVal,
+    categoria: categoria,
     tipoPagamento: 'AVISTA',
-    quantidadeParcelas: 1
+    quantidadeParcelas: 1,
+    dataPrimeiroVencimento: dataVal,
+    produtoId: produtoId ? parseInt(produtoId) : null,
+    quantidade: quantidade,
+    clienteId: clienteId
   };
   try {
     await apiPost('/movimentacoes', data);
-    closeModal(); loadMovimentacoes(); loadDashboard();
+    closeModal();
+    loadMovimentacoes();
+    loadDashboard();
+    checkEstoqueBaixo();
+    showToast('Movimentação registrada com sucesso!', 'success');
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -636,16 +899,16 @@ async function loadRelatoriosPage() {
   const fim = document.getElementById('rel-data-fim');
   if (inicio && !inicio.value) inicio.value = primeiroDia;
   if (fim && !fim.value) fim.value = ultimoDia;
-  
+
   const container = document.getElementById('relatorio-financeiro-content');
   if (container) container.innerHTML = `
     <div class="empty-state">
       <div class="empty-state-icon">📊</div>
       <div class="empty-state-text">Selecione o período e clique em Gerar Relatório</div>
     </div>`;
-  
+
   await loadRelatorioProdutos();
-  
+
   // Carregar relatório por vendedor se for gestor
   if (isAdmin()) await loadRelatorioVendedores();
 }
@@ -668,7 +931,7 @@ async function loadRelatorioFinanceiro() {
           <span class="text-success" style="font-weight:700;">${formatCurrency(c.valorTotal)}</span>
           <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">${c.quantidade} mov.</span>
         </div>
-      </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">Nenhuma entrada no período.</p>';
+      </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">Nenhuma venda no período.</p>';
 
     const catSaidasHTML = (r.saidasPorCategoria || []).map(c => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
@@ -677,7 +940,7 @@ async function loadRelatorioFinanceiro() {
           <span class="text-danger" style="font-weight:700;">${formatCurrency(c.valorTotal)}</span>
           <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">${c.quantidade} mov.</span>
         </div>
-      </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">Nenhuma saída no período.</p>';
+      </div>`).join('') || '<p style="color:var(--text-muted);font-size:13px;">Nenhuma compra no período.</p>';
 
     const clientesHTML = (r.fechamentoPorCliente || []).slice(0, 10).map(fc => `
       <div style="padding:10px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">
@@ -691,12 +954,12 @@ async function loadRelatorioFinanceiro() {
     container.innerHTML = `
       <div class="kpi-grid" style="margin-bottom:20px;">
         <div class="kpi-card" data-color="emerald">
-          <div class="kpi-label">📈 Total Entradas</div>
+          <div class="kpi-label">📈 Total Vendas</div>
           <div class="kpi-value text-success">${formatCurrency(r.totalEntradas)}</div>
           <div class="kpi-hint">Média diária: ${formatCurrency(r.mediaDiariaEntradas)}</div>
         </div>
         <div class="kpi-card" data-color="red">
-          <div class="kpi-label">📉 Total Saídas</div>
+          <div class="kpi-label">📉 Total Compras</div>
           <div class="kpi-value text-danger">${formatCurrency(r.totalSaidas)}</div>
           <div class="kpi-hint">Média diária: ${formatCurrency(r.mediaDiariaSaidas)}</div>
         </div>
@@ -714,11 +977,11 @@ async function loadRelatorioFinanceiro() {
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
         <div class="card" style="padding:18px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📥 Entradas por Categoria</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📥 Vendas por Categoria</div>
           ${catEntradasHTML}
         </div>
         <div class="card" style="padding:18px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📤 Saídas por Categoria</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📤 Compras por Categoria</div>
           ${catSaidasHTML}
         </div>
       </div>
@@ -768,7 +1031,7 @@ async function loadRelatorioProdutos() {
 async function loadRelatorioVendedores(inicio, fim) {
   const container = document.getElementById('relatorio-usuarios-content');
   if (!container || !isAdmin()) return;
-  const dataInicio = inicio || document.getElementById('rel-data-inicio')?.value || new Date().toISOString().split('T')[0].slice(0,7) + '-01';
+  const dataInicio = inicio || document.getElementById('rel-data-inicio')?.value || new Date().toISOString().split('T')[0].slice(0, 7) + '-01';
   const dataFim = fim || document.getElementById('rel-data-fim')?.value || new Date().toISOString().split('T')[0];
   try {
     const vendedores = await apiGet(`/relatorios/financeiro/usuarios?dataInicio=${dataInicio}&dataFim=${dataFim}`);
@@ -779,7 +1042,7 @@ async function loadRelatorioVendedores(inicio, fim) {
         <div style="display:grid;gap:10px;">
           ${vendedores.map((v, i) => `
             <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.02);">
-              <div style="font-size:18px;font-weight:800;color:var(--text-muted);min-width:28px;">#${i+1}</div>
+              <div style="font-size:18px;font-weight:800;color:var(--text-muted);min-width:28px;">#${i + 1}</div>
               <div style="flex:1;">
                 <div style="font-weight:700;font-size:14px;color:var(--text-primary);">${escapeHtml(v.nome || v.username)}</div>
                 <div style="font-size:11px;color:var(--text-muted);">@${escapeHtml(v.username)} · ${v.quantidadeMovimentacoes} mov.</div>
@@ -820,11 +1083,11 @@ async function loadHistorico() {
     }
     timeline.innerHTML = movs.map(m => `
       <div class="timeline-item">
-        <div class="timeline-icon ${m.tipo.toLowerCase()}">${m.tipo === 'ENTRADA' ? '+' : '-'}</div>
+        <div class="timeline-icon ${m.tipo.toLowerCase()}">${m.tipo === 'VENDA' ? '+' : '-'}</div>
         <div class="timeline-content" style="border:1px solid var(--border);padding:14px;border-radius:10px;flex:1;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
             <div>
-              <div class="timeline-date">${formatDate(m.data)} &bull; <span class="badge ${m.tipo === 'ENTRADA' ? 'badge-success' : 'badge-danger'}">${m.tipo}</span></div>
+              <div class="timeline-date">${formatDate(m.data)} &bull; <span class="badge ${m.tipo === 'VENDA' ? 'badge-success' : 'badge-danger'}">${m.tipo}</span></div>
               <div class="timeline-title" style="margin-top:4px;">${escapeHtml(m.descricao)}</div>
               <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
                 👤 <b>${escapeHtml(m.vendedorNome || m.vendedorUsername || 'Sistema')}</b>
@@ -834,7 +1097,7 @@ async function loadHistorico() {
               </div>
             </div>
             <div style="text-align:right;">
-              <strong class="${m.tipo === 'ENTRADA' ? 'text-success' : 'text-danger'}" style="font-size:16px;">${formatCurrency(m.valor)}</strong>
+              <strong class="${m.tipo === 'VENDA' ? 'text-success' : 'text-danger'}" style="font-size:16px;">${formatCurrency(m.valor)}</strong>
               <br>
               ${isAdmin() ? `<button class="btn btn-ghost btn-sm" style="margin-top:4px;" onclick="deleteMovimentacao(${m.id})">Excluir</button>` : ''}
             </div>
@@ -940,7 +1203,7 @@ async function openUserModal(id) {
   const modalTitle = document.getElementById('modal-title');
   const modalBody = document.getElementById('modal-body');
   const modalFooter = document.getElementById('modal-footer');
-  
+
   modalTitle.innerText = 'Editar Usuário / Redefinir Senha';
   modalBody.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando dados...</div>';
   modalFooter.innerHTML = '';
@@ -1061,11 +1324,11 @@ async function loadInfraestrutura() {
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">
             ${schemaTables.map(t => {
-              const isRequired = isPrimary && REQUIRED_TABLES.has(t.name);
-              const cardBorder = isRequired ? '1px solid rgba(52,211,153,0.4)' : '1px solid var(--border)';
-              const cardBg = isRequired ? 'rgba(52,211,153,0.05)' : 'rgba(255,255,255,0.02)';
-              const hoverBorder = isRequired ? 'rgba(52,211,153,0.7)' : 'var(--border-hover)';
-              return `
+        const isRequired = isPrimary && REQUIRED_TABLES.has(t.name);
+        const cardBorder = isRequired ? '1px solid rgba(52,211,153,0.4)' : '1px solid var(--border)';
+        const cardBg = isRequired ? 'rgba(52,211,153,0.05)' : 'rgba(255,255,255,0.02)';
+        const hoverBorder = isRequired ? 'rgba(52,211,153,0.7)' : 'var(--border-hover)';
+        return `
               <div style="padding:12px 14px;border:${cardBorder};border-radius:12px;background:${cardBg};transition:border-color 0.2s;position:relative;"
                    onmouseover="this.style.borderColor='${hoverBorder}'" onmouseout="this.style.borderColor='${isRequired ? 'rgba(52,211,153,0.4)' : 'var(--border)'}'">
                 ${isRequired ? `
@@ -1084,7 +1347,7 @@ async function loadInfraestrutura() {
                 ${t.plainPurpose && isPrimary ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;font-style:italic;">${t.plainPurpose}</div>` : ''}
                 ${t.dependsOn && t.dependsOn.length > 0 ? `
                   <div style="margin-top:8px;font-size:10px;color:var(--text-muted);">
-                    🔗 Depende de: ${t.dependsOn.map(d => `<code style="font-size:10px;">${d.replace('public.','')}</code>`).join(', ')}
+                    🔗 Depende de: ${t.dependsOn.map(d => `<code style="font-size:10px;">${d.replace('public.', '')}</code>`).join(', ')}
                   </div>` : ''}
               </div>
             `}).join('')}
@@ -1129,13 +1392,13 @@ async function loadInfraestrutura() {
           <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;font-weight:700;margin-bottom:16px;">⚙️ Runtime</div>
           <div style="display:grid;gap:8px;">
             ${[
-              ['Aplicação', app.displayName || app.name],
-              ['Java', rt.javaVersion],
-              ['Spring Boot', rt.springBootVersion],
-              ['Tomcat', rt.tomcatVersion],
-              ['SO', rt.operatingSystem],
-              ['Arch', rt.architecture],
-            ].map(([label, value]) => `
+        ['Aplicação', app.displayName || app.name],
+        ['Java', rt.javaVersion],
+        ['Spring Boot', rt.springBootVersion],
+        ['Tomcat', rt.tomcatVersion],
+        ['SO', rt.operatingSystem],
+        ['Arch', rt.architecture],
+      ].map(([label, value]) => `
               <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:8px;border:1px solid var(--border);">
                 <span style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">${label}</span>
                 <span style="font-size:12px;color:var(--text-secondary);font-weight:600;">${value || '-'}</span>
@@ -1188,7 +1451,7 @@ function startSqlLogsPolling() {
       const logs = await apiGet('/infra/sql-logs');
       const el = document.getElementById('live-sql-logs');
       if (el) el.innerHTML = logs.map(l => `<div>[${l.timestamp}] ${escapeHtml(l.sql)}</div>`).join('');
-    } catch (e) {}
+    } catch (e) { }
   }, 2000);
 }
 

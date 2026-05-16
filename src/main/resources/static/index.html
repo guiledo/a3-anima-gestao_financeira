@@ -182,6 +182,13 @@
           </nav>
 
           <div class="top-actions">
+            <div id="notification-bell"
+              style="margin-right: 15px; cursor: pointer; position: relative; font-size: 20px; display: none;"
+              onclick="showNotifications()" title="Ver Avisos">
+              🔔
+              <span id="notification-badge"
+                style="display: none; position: absolute; top: -4px; right: -6px; background: var(--accent-danger); color: white; border-radius: 50%; font-size: 10px; padding: 2px 5px; font-weight: bold; border: 2px solid var(--bg-surface);">0</span>
+            </div>
             <div id="status-indicator" onclick="checkSystemHealth()" title="Conectado">
               <div class="status-pulse" id="status-dot"></div>
             </div>
@@ -217,7 +224,17 @@
 
           <div class="chart-container-row">
             <div class="chart-card line-chart-card">
-              <h3>Evolução Financeira</h3>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0;">Evolução Financeira</h3>
+                <select id="chartMonthSelect" class="form-select"
+                  style="width: auto; padding: 4px 8px; font-size: 13px;"
+                  onchange="renderDashboardCharts(window.currentDashboardData)">
+                  <option value="7days">Últimos 7 dias</option>
+                  <option value="0">Este Mês</option>
+                  <option value="1">Mês Passado</option>
+                  <option value="2">2 Meses Atrás</option>
+                </select>
+              </div>
               <div class="canvas-wrapper clickable">
                 <canvas id="financialChart"></canvas>
               </div>
@@ -375,7 +392,8 @@
           <div class="page-header">
             <div>
               <h1 class="page-title">Vendedores e Acessos</h1>
-              <p class="page-subtitle">Cadastro e gerenciamento de vendedores e acessos do sistema (somente superusuário)</p>
+              <p class="page-subtitle">Cadastro e gerenciamento de vendedores e acessos do sistema (somente
+                superusuário)</p>
             </div>
             <button class="btn btn-ghost" onclick="loadUsuarios()">Atualizar</button>
           </div>
@@ -391,8 +409,7 @@
                 <div class="form-row">
                   <div class="form-group">
                     <label class="form-label">Login</label>
-                    <input class="form-input" id="new-user-username" type="text" placeholder="ex: vendedor7"
-                      required>
+                    <input class="form-input" id="new-user-username" type="text" placeholder="ex: vendedor7" required>
                   </div>
                   <div class="form-group">
                     <label class="form-label">Senha</label>
@@ -499,7 +516,7 @@
       </main>
     </div>
 
-    <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-overlay" id="modal-overlay">
       <div class="modal" onclick="event.stopPropagation()">
         <div class="modal-header">
           <h2 class="modal-title" id="modal-title">Modal</h2>
@@ -514,7 +531,7 @@
 
   </div> <!-- Fechamento da secure-app -->
 
-  <script src="/app.js?v=20260511-RELATORIOS"></script>
+  <script src="/app.js?v=20260516-COMPRA-ZERO-ROBUST"></script>
   <script>
     (function () {
       const canvas = document.getElementById('global-bg-canvas');

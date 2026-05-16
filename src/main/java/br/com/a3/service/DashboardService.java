@@ -32,12 +32,12 @@ public class DashboardService {
         Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
         BigDecimal totalEntradas = valorOuZero(
                 gestor
-                        ? movimentacaoFinanceiraRepository.somarPorTipo(TipoMovimentacao.ENTRADA)
-                        : movimentacaoFinanceiraRepository.somarPorTipo(usuarioId, TipoMovimentacao.ENTRADA));
+                        ? movimentacaoFinanceiraRepository.somarPorTipo(TipoMovimentacao.VENDA)
+                        : movimentacaoFinanceiraRepository.somarPorTipo(usuarioId, TipoMovimentacao.VENDA));
         BigDecimal totalSaidas = valorOuZero(
                 gestor
-                        ? movimentacaoFinanceiraRepository.somarPorTipo(TipoMovimentacao.SAIDA)
-                        : movimentacaoFinanceiraRepository.somarPorTipo(usuarioId, TipoMovimentacao.SAIDA));
+                        ? movimentacaoFinanceiraRepository.somarPorTipo(TipoMovimentacao.COMPRA)
+                        : movimentacaoFinanceiraRepository.somarPorTipo(usuarioId, TipoMovimentacao.COMPRA));
 
         List<Produto> produtosAtivos = produtoService.listarProdutosAtivos();
 

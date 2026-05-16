@@ -42,6 +42,9 @@ class RelatorioIntegrationTest {
     @Autowired
     private MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private br.com.a3.repository.UsuarioSistemaRepository usuarioSistemaRepository;
+
     private String sessionCookie;
 
     @BeforeEach
@@ -55,16 +58,16 @@ class RelatorioIntegrationTest {
     void deveGerarRelatorioFinanceiroComTotaisEMedias() throws Exception {
         LocalDate hoje = LocalDate.now();
         movimentacaoFinanceiraRepository.save(
-                criarMovimentacao(TipoMovimentacao.ENTRADA, "5000.00", "Venda produto A", "Cliente A", "Vendas",
+                criarMovimentacao(TipoMovimentacao.VENDA, "5000.00", "Venda produto A", "Cliente A", "Vendas",
                         hoje, TipoPagamento.AVISTA, 1, hoje));
         movimentacaoFinanceiraRepository.save(
-                criarMovimentacao(TipoMovimentacao.ENTRADA, "3000.00", "Venda produto B", "Cliente B", "Vendas",
+                criarMovimentacao(TipoMovimentacao.VENDA, "3000.00", "Venda produto B", "Cliente B", "Vendas",
                         hoje, TipoPagamento.PARCELADO, 3, hoje));
         movimentacaoFinanceiraRepository.save(
-                criarMovimentacao(TipoMovimentacao.SAIDA, "1200.00", "Compra de material", "Fornecedor A", "Compras",
+                criarMovimentacao(TipoMovimentacao.COMPRA, "1200.00", "Compra de material", "Fornecedor A", "Compras",
                         hoje, TipoPagamento.AVISTA, 1, hoje));
         movimentacaoFinanceiraRepository.save(
-                criarMovimentacao(TipoMovimentacao.SAIDA, "800.00", "Pagamento fornecedor", "Fornecedor B",
+                criarMovimentacao(TipoMovimentacao.COMPRA, "800.00", "Pagamento fornecedor", "Fornecedor B",
                         "Fornecedores", hoje, TipoPagamento.AVISTA, 1, hoje));
 
         String dataInicio = hoje.minusDays(1).toString();
@@ -102,7 +105,7 @@ class RelatorioIntegrationTest {
     void deveRetornarRelatorioFinanceiroVazioQuandoNaoHouverMovimentacoesNoPeriodo() throws Exception {
         LocalDate hoje = LocalDate.now();
         movimentacaoFinanceiraRepository.save(
-                criarMovimentacao(TipoMovimentacao.ENTRADA, "1000.00", "Venda antiga", "Cliente Antigo", "Vendas",
+                criarMovimentacao(TipoMovimentacao.VENDA, "1000.00", "Venda antiga", "Cliente Antigo", "Vendas",
                         hoje.minusMonths(3), TipoPagamento.AVISTA, 1, hoje.minusMonths(3)));
 
         String dataInicio = hoje.minusDays(7).toString();
@@ -213,8 +216,8 @@ class RelatorioIntegrationTest {
         return URI.create("http://localhost:" + port + path);
     }
 
-    private Produto criarProduto(String nome, String categoria, String custo, String preco, int estoque,
-            boolean ativo) {
+    private Produto criarProduto(String nome, String categoria, String custo, String preco, int estoque, boolean ativo) {
+        br.com.a3.model.UsuarioSistema usuario = usuarioSistemaRepository.findByUsernameIgnoreCase("a3_admin_2026").orElseThrow();
         Produto produto = new Produto();
         produto.setNome(nome);
         produto.setCategoria(categoria);
@@ -222,12 +225,12 @@ class RelatorioIntegrationTest {
         produto.setPreco(new BigDecimal(preco));
         produto.setEstoque(estoque);
         produto.setAtivo(ativo);
+        produto.setUsuario(usuario);
         return produto;
     }
 
-    private MovimentacaoFinanceira criarMovimentacao(TipoMovimentacao tipo, String valor, String descricao,
-            String cliente, String categoria, LocalDate data, TipoPagamento tipoPagamento, int quantidadeParcelas,
-            LocalDate dataPrimeiroVencimento) {
+    private MovimentacaoFinanceira criarMovimentacao(TipoMovimentacao tipo, String valor, String descricao, String cliente, String categoria, LocalDate data, TipoPagamento tipoPagamento, int quantidadeParcelas, LocalDate dataPrimeiroVencimento) {
+        br.com.a3.model.UsuarioSistema usuario = usuarioSistemaRepository.findByUsernameIgnoreCase("a3_admin_2026").orElseThrow();
         MovimentacaoFinanceira movimentacao = new MovimentacaoFinanceira();
         movimentacao.setTipo(tipo);
         movimentacao.setValor(new BigDecimal(valor));
@@ -238,6 +241,7 @@ class RelatorioIntegrationTest {
         movimentacao.setTipoPagamento(tipoPagamento);
         movimentacao.setQuantidadeParcelas(quantidadeParcelas);
         movimentacao.setDataPrimeiroVencimento(dataPrimeiroVencimento);
+        movimentacao.setUsuario(usuario);
         return movimentacao;
     }
 }

@@ -52,12 +52,12 @@ public class RelatorioService {
         boolean gestor = usuarioSistemaService.usuarioLogadoEhGestor();
         Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
         BigDecimal totalEntradas = gestor
-                ? movimentacaoFinanceiraRepository.somarPorTipoEPeriodo(TipoMovimentacao.ENTRADA, inicio, fim)
-                : movimentacaoFinanceiraRepository.somarPorTipoEPeriodo(usuarioId, TipoMovimentacao.ENTRADA, inicio,
+                ? movimentacaoFinanceiraRepository.somarPorTipoEPeriodo(TipoMovimentacao.VENDA, inicio, fim)
+                : movimentacaoFinanceiraRepository.somarPorTipoEPeriodo(usuarioId, TipoMovimentacao.VENDA, inicio,
                         fim);
         BigDecimal totalSaidas = gestor
-                ? movimentacaoFinanceiraRepository.somarPorTipoEPeriodo(TipoMovimentacao.SAIDA, inicio, fim)
-                : movimentacaoFinanceiraRepository.somarPorTipoEPeriodo(usuarioId, TipoMovimentacao.SAIDA, inicio,
+                ? movimentacaoFinanceiraRepository.somarPorTipoEPeriodo(TipoMovimentacao.COMPRA, inicio, fim)
+                : movimentacaoFinanceiraRepository.somarPorTipoEPeriodo(usuarioId, TipoMovimentacao.COMPRA, inicio,
                         fim);
         BigDecimal saldoPeriodo = totalEntradas.subtract(totalSaidas);
         long quantidadeMovimentacoes = gestor
@@ -70,13 +70,13 @@ public class RelatorioService {
         BigDecimal mediaDiariaSaidas = calcularMediaDiaria(totalSaidas, diasNoPeriodo);
 
         List<MovimentacaoPorCategoriaResponse> entradasPorCategoria = agruparPorCategoria(gestor
-                ? movimentacaoFinanceiraRepository.findByDataBetweenAndTipo(inicio, fim, TipoMovimentacao.ENTRADA)
+                ? movimentacaoFinanceiraRepository.findByDataBetweenAndTipo(inicio, fim, TipoMovimentacao.VENDA)
                 : movimentacaoFinanceiraRepository.findByUsuarioIdAndDataBetweenAndTipo(usuarioId, inicio, fim,
-                        TipoMovimentacao.ENTRADA));
+                        TipoMovimentacao.VENDA));
         List<MovimentacaoPorCategoriaResponse> saidasPorCategoria = agruparPorCategoria(gestor
-                ? movimentacaoFinanceiraRepository.findByDataBetweenAndTipo(inicio, fim, TipoMovimentacao.SAIDA)
+                ? movimentacaoFinanceiraRepository.findByDataBetweenAndTipo(inicio, fim, TipoMovimentacao.COMPRA)
                 : movimentacaoFinanceiraRepository.findByUsuarioIdAndDataBetweenAndTipo(usuarioId, inicio, fim,
-                        TipoMovimentacao.SAIDA));
+                        TipoMovimentacao.COMPRA));
         List<FechamentoClienteResponse> fechamentoPorCliente = gerarFechamentoPorCliente(inicio, fim);
         BigDecimal totalDevidoPorClientesNoPeriodo = fechamentoPorCliente.stream()
                 .map(FechamentoClienteResponse::valorDevidoNoPeriodo)
@@ -138,9 +138,9 @@ public class RelatorioService {
                 .filter(usuario -> usuario.ativo() && usuario.perfil() == PerfilUsuario.USER)
                 .map(usuario -> {
                     BigDecimal totalEntradas = movimentacaoFinanceiraRepository
-                            .somarPorTipoEPeriodo(usuario.id(), TipoMovimentacao.ENTRADA, inicio, fim);
+                            .somarPorTipoEPeriodo(usuario.id(), TipoMovimentacao.VENDA, inicio, fim);
                     BigDecimal totalSaidas = movimentacaoFinanceiraRepository
-                            .somarPorTipoEPeriodo(usuario.id(), TipoMovimentacao.SAIDA, inicio, fim);
+                            .somarPorTipoEPeriodo(usuario.id(), TipoMovimentacao.COMPRA, inicio, fim);
 
                     return new RelatorioUsuarioResponse(
                             usuario.id(),
@@ -183,9 +183,9 @@ public class RelatorioService {
         Long usuarioId = usuarioSistemaService.getUsuarioLogado().getId();
         Map<String, List<MovimentacaoFinanceira>> porCliente = (gestor
                 ? movimentacaoFinanceiraRepository.findByTipoOrderByClienteAscDataPrimeiroVencimentoAscIdAsc(
-                        TipoMovimentacao.ENTRADA)
+                        TipoMovimentacao.VENDA)
                 : movimentacaoFinanceiraRepository.findByUsuarioIdAndTipoOrderByClienteAscDataPrimeiroVencimentoAscIdAsc(
-                        usuarioId, TipoMovimentacao.ENTRADA))
+                        usuarioId, TipoMovimentacao.VENDA))
                 .stream()
                 .collect(Collectors.groupingBy(MovimentacaoFinanceira::getCliente));
 
