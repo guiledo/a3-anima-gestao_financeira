@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -56,4 +57,8 @@ public interface MovimentacaoFinanceiraRepository extends JpaRepository<Moviment
     List<MovimentacaoFinanceira> findByTipoOrderByClienteAscDataPrimeiroVencimentoAscIdAsc(TipoMovimentacao tipo);
 
     List<MovimentacaoFinanceira> findByUsuarioIdAndTipoOrderByClienteAscDataPrimeiroVencimentoAscIdAsc(Long usuarioId, TipoMovimentacao tipo);
+
+    @Modifying
+    @Query("UPDATE MovimentacaoFinanceira m SET m.usuario = :novoUsuario WHERE m.usuario.id = :antigoUsuarioId")
+    void reatribuirPropriedade(@Param("antigoUsuarioId") Long antigoUsuarioId, @Param("novoUsuario") br.com.a3.model.UsuarioSistema novoUsuario);
 }

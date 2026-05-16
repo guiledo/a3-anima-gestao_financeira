@@ -18,6 +18,9 @@ import br.com.a3.dto.usuario.UsuarioResponse;
 import br.com.a3.exception.RecursoNaoEncontradoException;
 import br.com.a3.model.PerfilUsuario;
 import br.com.a3.model.UsuarioSistema;
+import br.com.a3.repository.ClienteRepository;
+import br.com.a3.repository.MovimentacaoFinanceiraRepository;
+import br.com.a3.repository.ProdutoRepository;
 import br.com.a3.repository.UsuarioSistemaRepository;
 
 @Service
@@ -25,11 +28,20 @@ import br.com.a3.repository.UsuarioSistemaRepository;
 public class UsuarioSistemaService implements UserDetailsService {
 
     private final UsuarioSistemaRepository usuarioSistemaRepository;
+    private final ProdutoRepository produtoRepository;
+    private final MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository;
+    private final ClienteRepository clienteRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UsuarioSistemaService(UsuarioSistemaRepository usuarioSistemaRepository,
+            ProdutoRepository produtoRepository,
+            MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository,
+            ClienteRepository clienteRepository,
             PasswordEncoder passwordEncoder) {
         this.usuarioSistemaRepository = usuarioSistemaRepository;
+        this.produtoRepository = produtoRepository;
+        this.movimentacaoFinanceiraRepository = movimentacaoFinanceiraRepository;
+        this.clienteRepository = clienteRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -109,15 +121,31 @@ public class UsuarioSistemaService implements UserDetailsService {
     }
 
     public void excluir(Long id) {
-        UsuarioSistema usuario = buscarEntidade(id);
-        boolean eraSuperuserAtivo = usuario.getPerfil() == PerfilUsuario.SUPERUSER && Boolean.TRUE.equals(usuario.getAtivo());
+        UsuarioSistema usuarioParaExcluir = buscarEntidade(id);
+        
+        boolean eraSuperuserAtivo = usuarioParaExcluir.getPerfil() == PerfilUsuario.SUPERUSER && Boolean.TRUE.equals(usuarioParaExcluir.getAtivo());
         validarUltimoSuperuserAtivo(eraSuperuserAtivo, null);
-        try {
-            usuarioSistemaRepository.delete(usuario);
-        } catch (Exception ex) {
-            usuario.setAtivo(false);
-            usuarioSistemaRepository.save(usuario);
+
+        UsuarioSistema gestorAtual = getUsuarioLogado();
+        UsuarioSistema novoDono = gestorAtual;
+        Long antigoDonoId = usuarioParaExcluir.getId();
+
+        // Se o gestor atual for o proprio usuario sendo excluido (improvavel mas possivel se houver outros superusers)
+        // buscamos outro superuser ou admin para receber a carga se necessario.
+        if (novoDono.getId().equals(antigoDonoId)) {
+             novoDono = usuarioSistemaRepository.findAll().stream()
+                     .filter(u -> !u.getId().equals(antigoDonoId) && (u.getPerfil() == PerfilUsuario.SUPERUSER || u.getPerfil() == PerfilUsuario.ADMIN))
+                     .findFirst()
+                     .orElse(null);
         }
+
+        if (novoDono != null) {
+            produtoRepository.reatribuirPropriedade(antigoDonoId, novoDono);
+            movimentacaoFinanceiraRepository.reatribuirPropriedade(antigoDonoId, novoDono);
+            clienteRepository.reatribuirPropriedade(antigoDonoId, novoDono);
+        }
+
+        usuarioSistemaRepository.delete(usuarioParaExcluir);
     }
 
     public void garantirSuperusuarioInicial(String nome, String username, String password) {

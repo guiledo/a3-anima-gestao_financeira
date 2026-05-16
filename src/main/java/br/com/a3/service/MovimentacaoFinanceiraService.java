@@ -61,7 +61,7 @@ public class MovimentacaoFinanceiraService {
             log.info("[ESTOQUE] Produto: '{}' (ID:{}) | Tipo: {} | Qtd: {} | Estoque atual: {}",
                     produto.getNome(), produto.getId(), movimentacao.getTipo(), qtd, estoqueAtual);
 
-            if (TipoMovimentacao.ENTRADA.equals(movimentacao.getTipo())) {
+            if (TipoMovimentacao.VENDA.equals(movimentacao.getTipo())) {
                 if (estoqueAtual < qtd) {
                     throw new IllegalArgumentException("Estoque insuficiente para o produto: " + produto.getNome() 
                         + ". Disponível: " + estoqueAtual + ", Solicitado: " + qtd);
@@ -69,12 +69,12 @@ public class MovimentacaoFinanceiraService {
                 int novoEstoque = estoqueAtual - qtd;
                 produto.setEstoque(novoEstoque);
                 produtoRepository.saveAndFlush(produto);
-                log.info("[ESTOQUE] Deducao aplicada. Novo estoque: {}", novoEstoque);
-            } else if (TipoMovimentacao.SAIDA.equals(movimentacao.getTipo())) {
+                log.info("[ESTOQUE] Deducao aplicada (VENDA). Novo estoque: {}", novoEstoque);
+            } else if (TipoMovimentacao.COMPRA.equals(movimentacao.getTipo())) {
                 int novoEstoque = estoqueAtual + qtd;
                 produto.setEstoque(novoEstoque);
                 produtoRepository.saveAndFlush(produto);
-                log.info("[ESTOQUE] Incremento aplicado. Novo estoque: {}", novoEstoque);
+                log.info("[ESTOQUE] Incremento aplicado (COMPRA). Novo estoque: {}", novoEstoque);
             } else {
                 log.warn("[ESTOQUE] Tipo de movimentacao nao reconhecido: {}", movimentacao.getTipo());
             }

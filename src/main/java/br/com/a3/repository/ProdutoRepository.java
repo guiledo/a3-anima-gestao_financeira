@@ -29,4 +29,8 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "UPDATE produtos SET estoque = estoque + :qtd WHERE id = :id", nativeQuery = true)
     void incrementarEstoque(@Param("id") Long id, @Param("qtd") int qtd);
+
+    @Modifying
+    @Query("UPDATE Produto p SET p.usuario = :novoUsuario WHERE p.usuario.id = :antigoUsuarioId")
+    void reatribuirPropriedade(@Param("antigoUsuarioId") Long antigoUsuarioId, @Param("novoUsuario") br.com.a3.model.UsuarioSistema novoUsuario);
 }
