@@ -22,5 +22,6 @@ public record MovimentacaoFinanceiraResponse(
         Long produtoId,
         String produtoNome,
         Integer quantidade,
-        Long clienteId) {
+        Long clienteId,
+        Long fornecedorId) {
 }

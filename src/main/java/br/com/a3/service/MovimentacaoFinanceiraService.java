@@ -30,17 +30,20 @@ public class MovimentacaoFinanceiraService {
     private final ProdutoService produtoService;
     private final br.com.a3.repository.ProdutoRepository produtoRepository;
     private final br.com.a3.repository.ClienteRepository clienteRepository;
+    private final br.com.a3.repository.FornecedorRepository fornecedorRepository;
 
     public MovimentacaoFinanceiraService(MovimentacaoFinanceiraRepository movimentacaoFinanceiraRepository,
             UsuarioSistemaService usuarioSistemaService,
             ProdutoService produtoService,
             br.com.a3.repository.ProdutoRepository produtoRepository,
-            br.com.a3.repository.ClienteRepository clienteRepository) {
+            br.com.a3.repository.ClienteRepository clienteRepository,
+            br.com.a3.repository.FornecedorRepository fornecedorRepository) {
         this.movimentacaoFinanceiraRepository = movimentacaoFinanceiraRepository;
         this.usuarioSistemaService = usuarioSistemaService;
         this.produtoService = produtoService;
         this.produtoRepository = produtoRepository;
         this.clienteRepository = clienteRepository;
+        this.fornecedorRepository = fornecedorRepository;
     }
 
     public MovimentacaoFinanceiraResponse criar(MovimentacaoFinanceiraRequest request, Authentication authentication) {
@@ -49,6 +52,22 @@ public class MovimentacaoFinanceiraService {
         aplicarDados(movimentacao, request);
         aplicarVendedor(movimentacao);
         
+        // ============================================================
+        // VERIFICACAO DE SALDO PARA COMPRAS
+        // ============================================================
+        if (TipoMovimentacao.COMPRA.equals(movimentacao.getTipo())) {
+            java.math.BigDecimal totalVendas = movimentacaoFinanceiraRepository.somarPorTipo(TipoMovimentacao.VENDA);
+            java.math.BigDecimal totalCompras = movimentacaoFinanceiraRepository.somarPorTipo(TipoMovimentacao.COMPRA);
+            java.math.BigDecimal saldoAtual = totalVendas.subtract(totalCompras);
+
+            if (saldoAtual.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Saldo insuficiente. O saldo atual é negativo ou zero, não é possível realizar novas compras.");
+            }
+            if (movimentacao.getValor().compareTo(saldoAtual) > 0) {
+                throw new IllegalArgumentException("O valor da compra excede o saldo atual disponível de " + saldoAtual);
+            }
+        }
+
         // ============================================================
         // BAIXA DE ESTOQUE: executada ANTES de salvar a movimentacao
         // Usa o ProdutoService que e @Transactional e usa save() padrao
@@ -160,6 +179,15 @@ public class MovimentacaoFinanceiraService {
         } else {
             movimentacao.setClienteEntidade(null);
         }
+
+        if (request.fornecedorId() != null) {
+            movimentacao.setFornecedorEntidade(fornecedorRepository.findById(request.fornecedorId()).orElse(null));
+            if (movimentacao.getFornecedorEntidade() != null) {
+                movimentacao.setCliente(movimentacao.getFornecedorEntidade().getNome());
+            }
+        } else {
+            movimentacao.setFornecedorEntidade(null);
+        }
     }
 
     private void aplicarVendedor(MovimentacaoFinanceira movimentacao) {
@@ -218,6 +246,7 @@ public class MovimentacaoFinanceiraService {
                 movimentacao.getProduto() != null ? movimentacao.getProduto().getId() : null,
                 movimentacao.getProduto() != null ? movimentacao.getProduto().getNome() : null,
                 movimentacao.getQuantidade(),
-                movimentacao.getClienteEntidade() != null ? movimentacao.getClienteEntidade().getId() : null);
+                movimentacao.getClienteEntidade() != null ? movimentacao.getClienteEntidade().getId() : null,
+                movimentacao.getFornecedorEntidade() != null ? movimentacao.getFornecedorEntidade().getId() : null);
     }
 }

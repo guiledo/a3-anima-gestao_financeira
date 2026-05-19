@@ -52,5 +52,6 @@ public record MovimentacaoFinanceiraRequest(
 
         Long produtoId,
         Integer quantidade,
-        Long clienteId) {
+        Long clienteId,
+        Long fornecedorId) {
 }

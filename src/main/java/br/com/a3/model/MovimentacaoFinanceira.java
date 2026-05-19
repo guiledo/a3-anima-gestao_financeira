@@ -199,4 +199,16 @@ public class MovimentacaoFinanceira {
     public void setClienteEntidade(Cliente clienteEntidade) {
         this.clienteEntidade = clienteEntidade;
     }
+
+    @ManyToOne
+    @JoinColumn(name = "fornecedor_id")
+    private Fornecedor fornecedorEntidade;
+
+    public Fornecedor getFornecedorEntidade() {
+        return fornecedorEntidade;
+    }
+
+    public void setFornecedorEntidade(Fornecedor fornecedorEntidade) {
+        this.fornecedorEntidade = fornecedorEntidade;
+    }
 }
