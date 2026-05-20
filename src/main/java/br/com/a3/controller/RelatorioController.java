@@ -41,4 +41,11 @@ public class RelatorioController {
             @RequestParam("dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim) {
         return relatorioService.gerarRelatorioFinanceiroPorUsuario(dataInicio, dataFim);
     }
+
+    @GetMapping("/financeiro/fornecedores")
+    public java.util.List<br.com.a3.dto.relatorio.RelatorioFornecedorResponse> relatorioFinanceiroPorFornecedor(
+            @RequestParam("dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam("dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim) {
+        return relatorioService.gerarRelatorioFinanceiroPorFornecedor(dataInicio, dataFim);
+    }
 }

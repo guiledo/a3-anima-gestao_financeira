@@ -24,6 +24,7 @@ import br.com.a3.dto.relatorio.ProdutoPorCategoriaResponse;
 import br.com.a3.dto.relatorio.RelatorioFinanceiroResponse;
 import br.com.a3.dto.relatorio.RelatorioProdutosResponse;
 import br.com.a3.dto.relatorio.RelatorioUsuarioResponse;
+import br.com.a3.dto.relatorio.RelatorioFornecedorResponse;
 import br.com.a3.model.MovimentacaoFinanceira;
 import br.com.a3.model.PerfilUsuario;
 import br.com.a3.model.Produto;
@@ -153,6 +154,26 @@ public class RelatorioService {
                             totalEntradas.subtract(totalSaidas));
                 })
                 .sorted((a, b) -> b.totalEntradas().compareTo(a.totalEntradas()))
+                .toList();
+    }
+
+    public List<RelatorioFornecedorResponse> gerarRelatorioFinanceiroPorFornecedor(LocalDate inicio, LocalDate fim) {
+        List<MovimentacaoFinanceira> compras = movimentacaoFinanceiraRepository.findByDataBetweenAndTipo(inicio, fim, TipoMovimentacao.COMPRA);
+        
+        Map<br.com.a3.model.Fornecedor, List<MovimentacaoFinanceira>> agrupadas = compras.stream()
+                .filter(m -> m.getFornecedorEntidade() != null)
+                .collect(Collectors.groupingBy(MovimentacaoFinanceira::getFornecedorEntidade));
+
+        return agrupadas.entrySet().stream()
+                .map(entrada -> {
+                    br.com.a3.model.Fornecedor f = entrada.getKey();
+                    List<MovimentacaoFinanceira> movs = entrada.getValue();
+                    BigDecimal totalSaidas = movs.stream()
+                            .map(MovimentacaoFinanceira::getValor)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    return new RelatorioFornecedorResponse(f.getId(), f.getNome(), movs.size(), totalSaidas);
+                })
+                .sorted((a, b) -> b.totalSaidas().compareTo(a.totalSaidas()))
                 .toList();
     }
 

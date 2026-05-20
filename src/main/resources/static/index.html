@@ -155,29 +155,35 @@
           </div>
 
           <nav class="top-menu">
-            <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
+            <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')" id="menu-dashboard">
               Dashboard
             </div>
-            <div class="nav-item" data-page="produtos" onclick="navigateTo('produtos')">
+            <div class="nav-item" data-page="produtos" onclick="navigateTo('produtos')" id="menu-produtos">
               Produtos
             </div>
-            <div class="nav-item" data-page="clientes" onclick="navigateTo('clientes')">
+            <div class="nav-item" data-page="clientes" onclick="navigateTo('clientes')" id="menu-clientes">
               Clientes
             </div>
-            <div class="nav-item" data-page="movimentacoes" onclick="navigateTo('movimentacoes')">
+            <div class="nav-item" data-page="fornecedores" onclick="navigateTo('fornecedores')" id="menu-fornecedores">
+              Fornecedores
+            </div>
+            <div class="nav-item" data-page="movimentacoes" onclick="navigateTo('movimentacoes')" id="menu-movimentacoes">
               Movimentações
             </div>
-            <div class="nav-item" data-page="relatorios" onclick="navigateTo('relatorios')">
+            <div class="nav-item" data-page="relatorios" onclick="navigateTo('relatorios')" id="menu-relatorios">
               Relatórios
             </div>
             <div class="nav-item" data-page="usuarios" onclick="navigateTo('usuarios')" id="menu-usuarios">
               Gestão de Acessos
             </div>
-            <div class="nav-item" data-page="historico" onclick="navigateTo('historico')">
+            <div class="nav-item" data-page="historico" onclick="navigateTo('historico')" id="menu-historico">
               Histórico
             </div>
             <div class="nav-item" data-page="infraestrutura" onclick="navigateTo('infraestrutura')" id="menu-infra">
               Gestão de Infra (Supabase)
+            </div>
+            <div class="nav-item" data-page="configuracoes" onclick="navigateTo('configuracoes')" id="menu-configuracoes">
+              Personalização
             </div>
           </nav>
 
@@ -192,8 +198,6 @@
             <div id="status-indicator" onclick="checkSystemHealth()" title="Conectado">
               <div class="status-pulse" id="status-dot"></div>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="openChangePasswordModal()" title="Trocar Minha Senha"
-              style="font-size: 14px; font-weight: 600; padding: 6px 14px; margin-right: 4px;">Trocar Senha</button>
             <button class="btn btn-ghost btn-sm" onclick="handleLogout()" title="Sair do Sistema"
               style="font-size: 14px; font-weight: 600; padding: 6px 14px;">Sair</button>
             <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleSidebar()">
@@ -254,7 +258,10 @@
               <h1 class="page-title">Produtos</h1>
               <p class="page-subtitle">Catálogo central e controle de estoque</p>
             </div>
-            <button class="btn btn-primary" id="btn-novo-produto" onclick="openProdutoModal()">Novo Produto</button>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <input type="text" id="search-produtos" class="form-input" placeholder="🔍 Buscar produto..." style="width:220px;" oninput="filtrarTabela(this.value,'produtos-tbody',8)">
+              <button class="btn btn-primary" id="btn-novo-produto" onclick="openProdutoModal()">Novo Produto</button>
+            </div>
           </div>
 
           <div class="card">
@@ -296,7 +303,7 @@
               <h1 class="page-title">Movimentações Financeiras</h1>
               <p class="page-subtitle">Controle de entradas e saídas.</p>
             </div>
-            <button class="btn btn-primary" onclick="openMovimentacaoModal()">Nova Movimentação</button>
+            <button class="btn btn-primary" id="btn-nova-movimentacao" onclick="openMovimentacaoModal()">Nova Movimentação</button>
           </div>
 
           <div class="card">
@@ -320,7 +327,10 @@
               <h1 class="page-title">Clientes</h1>
               <p class="page-subtitle">Gestão de clientes e CRM</p>
             </div>
-            <button class="btn btn-primary" onclick="openClienteModal()">Novo Cliente</button>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <input type="text" id="search-clientes" class="form-input" placeholder="🔍 Buscar cliente..." style="width:220px;" oninput="filtrarTabela(this.value,'clientes-table-body',5)">
+              <button class="btn btn-primary" onclick="openClienteModal()">Novo Cliente</button>
+            </div>
           </div>
 
           <div class="card">
@@ -333,13 +343,49 @@
                 <thead>
                   <tr>
                     <th>Nome</th>
-                    <th>Documento (CPF/CNPJ)</th>
+                    <th>CPF</th>
                     <th>E-mail</th>
                     <th>Telefone</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody id="clientes-table-body">
+                  <!-- JS Render -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-fornecedores">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Fornecedores</h1>
+              <p class="page-subtitle">Gestão de fornecedores parceiros</p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <input type="text" id="search-fornecedores" class="form-input" placeholder="🔍 Buscar fornecedor..." style="width:220px;" oninput="filtrarTabela(this.value,'fornecedores-table-body',5)">
+              <button class="btn btn-primary" onclick="openFornecedorModal()">Novo Fornecedor</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Base de Fornecedores</span>
+              <span id="fornecedores-count" class="badge badge-neutral">0 cadastrados</span>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Documento (CNPJ)</th>
+                    <th>E-mail</th>
+                    <th>Telefone</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="fornecedores-table-body">
                   <!-- JS Render -->
                 </tbody>
               </table>
@@ -513,6 +559,71 @@
             </div>
           </div>
         </section>
+        <section class="page" id="page-configuracoes">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Personalização de Marca</h1>
+              <p class="page-subtitle">Configure o layout e a identidade visual da aplicação (QA)</p>
+            </div>
+            <button class="btn btn-primary" onclick="salvarConfiguracaoApp()">Salvar Configurações</button>
+          </div>
+
+          <div class="card" style="padding: 20px;">
+            <div class="form-group">
+              <label class="form-label">Nome da Aplicação</label>
+              <input type="text" id="config-nome-app" class="form-input" placeholder="Ex: A3 Store">
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label">Logo da Aplicação (Obrigatório PNG, máx 2MB, Resolução Ideal: 250x80)</label>
+                <input type="file" id="config-logo" class="form-input" accept="image/png" onchange="previewImagem(this, 'preview-logo')">
+                <img id="preview-logo" style="margin-top: 10px; max-height: 80px; max-width: 100%; border: 1px dashed var(--border); padding: 5px; display: none;">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Imagem de Fundo (PNG/JPG, máx 3MB, Resolução Ideal: 1920x1080)</label>
+                <input type="file" id="config-fundo" class="form-input" accept="image/png, image/jpeg" onchange="previewImagem(this, 'preview-fundo')">
+                <img id="preview-fundo" style="margin-top: 10px; max-height: 80px; max-width: 100%; border: 1px dashed var(--border); padding: 5px; display: none;">
+              </div>
+            </div>
+
+            <h3 style="margin-top: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Textos de Botões e Menus</h3>
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label">Texto do Menu Dashboard</label>
+                <input type="text" id="config-btn-dashboard" class="form-input" placeholder="Dashboard">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Texto do Menu Produtos</label>
+                <input type="text" id="config-btn-produtos" class="form-input" placeholder="Produtos">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Texto do Menu Clientes</label>
+                <input type="text" id="config-btn-clientes" class="form-input" placeholder="Clientes">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Texto do Menu Movimentações</label>
+                <input type="text" id="config-btn-movimentacoes" class="form-input" placeholder="Movimentações">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Texto do Menu Gestão de Acessos</label>
+                <input type="text" id="config-btn-usuarios" class="form-input" placeholder="Gestão de Acessos">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Texto do Menu Histórico</label>
+                <input type="text" id="config-btn-historico" class="form-input" placeholder="Histórico">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Botão Novo Produto</label>
+                <input type="text" id="config-btn-produto" class="form-input" placeholder="Novo Produto">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Botão Nova Movimentação</label>
+                <input type="text" id="config-btn-venda" class="form-input" placeholder="Nova Movimentação">
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
 
@@ -531,7 +642,7 @@
 
   </div> <!-- Fechamento da secure-app -->
 
-  <script src="/app.js?v=20260516-COMPRA-ZERO-ROBUST"></script>
+  <script src="/app.js?v=20260517-WHITE-LABEL-V3"></script>
   <script>
     (function () {
       const canvas = document.getElementById('global-bg-canvas');

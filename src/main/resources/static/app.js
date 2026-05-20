@@ -84,6 +84,13 @@ function navigateTo(page) {
   updateMobilePageTitle(page);
   if (isMobileView()) closeSidebar();
 
+  // QA: Limpa os campos de busca ao trocar de página para evitar
+  // que filtros antigos permaneçam ativos e confundam o usuário.
+  ['search-produtos', 'search-clientes', 'search-fornecedores'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
   if (page !== 'movimentacoes') {
     window.movTypeFilter = null;
   }
@@ -92,6 +99,7 @@ function navigateTo(page) {
     case 'dashboard': loadDashboard(); break;
     case 'produtos': loadProdutos(); break;
     case 'clientes': loadClientes(); break;
+    case 'fornecedores': loadFornecedores(); break;
     case 'movimentacoes': loadMovimentacoes(); break;
     case 'relatorios': loadRelatoriosPage(); break;
     case 'historico': loadHistorico(); break;
@@ -165,7 +173,8 @@ async function apiRequest(path, options = {}) {
     }
 
     const detail = errorBody?.detail || errorBody?.title || `Erro ${response.status}`;
-    if ((response.status === 401 || response.status === 403) && path !== '/auth/login') {
+    // QA: Apenas 401 (não autenticado) deve deslogar. 403 é "sem permissão" — não desloga.
+    if (response.status === 401 && path !== '/auth/login') {
       clearCurrentUser();
       const loginScreen = document.getElementById('login-screen');
       const secureApp = document.getElementById('secure-app');
@@ -252,6 +261,52 @@ function buildEmptyState(title, subtitle = '', icon = '!') {
   `;
 }
 
+/**
+ * FILTRO DE PESQUISA EM TEMPO REAL (QA: sem necessidade de pressionar Enter)
+ *
+ * Esta função percorre todas as linhas (<tr>) de um <tbody> e esconde
+ * as que não contêm o texto digitado. A busca é case-insensitive e
+ * verifica o texto concatenado de todas as células da linha.
+ *
+ * @param {string} query       - Texto digitado pelo usuário no campo de busca
+ * @param {string} tbodyId     - ID do elemento <tbody> alvo
+ * @param {number} colspan     - Número de colunas (usado para exibir msg "nenhum resultado")
+ *
+ * QA Notes:
+ *  - A função é chamada pelo evento `oninput`, garantindo reatividade a cada tecla.
+ *  - Remove o aviso "nenhum resultado" antes de recalcular para evitar duplicação.
+ *  - Usa `textContent` (sem HTML) para evitar falso-positivo em tags de ícone.
+ */
+function filtrarTabela(query, tbodyId, colspan) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+
+  const termo = query.trim().toLowerCase();
+
+  // Remove aviso anterior de "nenhum resultado", se existir
+  const avisoAnterior = tbody.querySelector('tr[data-empty-search]');
+  if (avisoAnterior) avisoAnterior.remove();
+
+  let visiveis = 0;
+  Array.from(tbody.rows).forEach(row => {
+    // Concatena o texto de todas as células para busca global na linha
+    const textoLinha = row.textContent.toLowerCase();
+    const visivel = !termo || textoLinha.includes(termo);
+    row.style.display = visivel ? '' : 'none';
+    if (visivel) visiveis++;
+  });
+
+  // Exibe mensagem amigável quando nenhuma linha corresponde ao filtro
+  if (visiveis === 0 && termo) {
+    const trVazio = document.createElement('tr');
+    trVazio.setAttribute('data-empty-search', 'true');
+    trVazio.innerHTML = `<td colspan="${colspan}" style="text-align:center;padding:24px;opacity:0.6;">
+      🔍 Nenhum resultado encontrado para "<strong>${escapeHtml(query)}</strong>"
+    </td>`;
+    tbody.appendChild(trVazio);
+  }
+}
+
 // --- DASHBOARD ---
 async function loadDashboard() {
   const grid = document.getElementById('kpi-grid');
@@ -270,9 +325,9 @@ async function loadDashboard() {
         <div class="kpi-hint">↗ Ver vendas</div>
       </div>
       <div class="kpi-card" data-color="red" data-action="filter-mov" data-type="COMPRA">
-        <div class="kpi-label">📉 Total Compras</div>
+        <div class="kpi-label">📉 Despesas</div>
         <div class="kpi-value text-danger">${formatCurrency(data.totalSaidas)}</div>
-        <div class="kpi-hint">↗ Ver compras</div>
+        <div class="kpi-hint">↗ Ver despesas</div>
       </div>
       <div class="kpi-card" data-color="${saldoColor}" data-action="show-saldo">
         <div class="kpi-label">💰 Saldo Atual</div>
@@ -383,7 +438,7 @@ async function showSaldoDrilldown() {
         <div style="font-size: 20px; font-weight: 800; color: var(--accent-success);">${formatCurrency(d.totalEntradas)}</div>
       </div>
       <div class="card" style="padding: 16px; background: rgba(248, 113, 113, 0.05); border-color: var(--accent-danger);">
-        <div style="font-size: 12px; color: var(--text-muted);">TOTAL COMPRAS</div>
+        <div style="font-size: 12px; color: var(--text-muted);">DESPESAS</div>
         <div style="font-size: 20px; font-weight: 800; color: var(--accent-danger);">${formatCurrency(d.totalSaidas)}</div>
       </div>
       <div style="text-align: center; padding-top: 8px; border-top: 1px solid var(--border);">
@@ -431,7 +486,7 @@ async function renderDashboardCharts(dashData) {
     chartInstances['balance'] = new Chart(ctxBalance, {
       type: 'doughnut',
       data: {
-        labels: ['Vendas', 'Compras'],
+        labels: ['Vendas', 'Despesas'],
         datasets: [{
           data: [dashData.totalEntradas || 0, dashData.totalSaidas || 0],
           backgroundColor: ['#10b981', '#ef4444'],
@@ -550,6 +605,17 @@ async function renderDashboardCharts(dashData) {
 }
 
 // --- PRODUTOS ---
+/**
+ * loadProdutos — Carrega e renderiza a lista de produtos a partir da API REST.
+ *
+ * Comunicação distribuída: esta função consome o endpoint GET /api/v1/produtos
+ * via protocolo HTTP/1.1. O back-end (Spring Boot) processa a requisição,
+ * consulta o banco PostgreSQL hospedado no Supabase (nuvem) e retorna
+ * o array de produtos em formato JSON — padrão de Web Service RESTful.
+ *
+ * QA: O botão "Novo Produto" é ocultado para usuários sem perfil ADMIN,
+ * garantindo RBAC (Role-Based Access Control) no front-end.
+ */
 async function loadProdutos() {
   const tbody = document.getElementById('produtos-tbody');
   if (!tbody) return;
@@ -684,9 +750,14 @@ async function openMovimentacaoModal() {
   try { produtos = (await apiGet('/produtos')).filter(p => p.ativo !== false); } catch (e) { }
   window.produtosAtivosCache = produtos;
 
-  // Carrega clientes cadastrados
+  // Carrega clientes e fornecedores cadastrados
   let clientes = [];
   try { clientes = await apiGet('/clientes'); } catch (e) { }
+  window.clientesCache = clientes;
+
+  let fornecedores = [];
+  try { fornecedores = await apiGet('/fornecedores'); } catch (e) { }
+  window.fornecedoresCache = fornecedores;
 
   window.updateProdutoOptions = function() {
     const tipo = document.getElementById('mov-tipo')?.value || 'VENDA';
@@ -709,13 +780,31 @@ async function openMovimentacaoModal() {
     select.innerHTML = html;
   };
 
-  // Opções de clientes: somente os cadastrados no sistema
-  const clienteOptions = `<option value="">-- Selecione o cliente/fornecedor --</option>` +
-    clientes.map(c => `<option value="${c.id}" data-nome="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}${c.documento ? ' (' + escapeHtml(c.documento) + ')' : ''}</option>`).join('');
+  window.updateClienteOptions = function() {
+    const tipo = document.getElementById('mov-tipo')?.value || 'VENDA';
+    const select = document.getElementById('mov-cliente-select');
+    const label = document.getElementById('mov-cliente-label');
+    const semClientesEl = document.getElementById('mov-sem-clientes');
+    if (!select) return;
 
-  const semClientes = clientes.length === 0
-    ? `<small style="color:var(--accent-danger);display:block;margin-top:6px;">⚠️ Nenhum cliente cadastrado. Vá em <b>Clientes</b> e cadastre primeiro.</small>`
-    : '';
+    let lista = tipo === 'VENDA' ? window.clientesCache : window.fornecedoresCache;
+    let title = tipo === 'VENDA' ? 'Cliente' : 'Fornecedor';
+
+    if (label) label.textContent = title;
+
+    let html = `<option value="">-- Selecione o ${title.toLowerCase()} --</option>` +
+      lista.map(c => `<option value="${c.id}" data-nome="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}${c.documento ? ' (' + escapeHtml(c.documento) + ')' : ''}</option>`).join('');
+    select.innerHTML = html;
+
+    if (semClientesEl) {
+      if (lista.length === 0) {
+        semClientesEl.innerHTML = `⚠️ Nenhum ${title.toLowerCase()} cadastrado.`;
+        semClientesEl.style.display = 'block';
+      } else {
+        semClientesEl.style.display = 'none';
+      }
+    }
+  };
 
   const isUserVendedor = !isAdmin();
   const tipoOptions = isUserVendedor 
@@ -725,7 +814,7 @@ async function openMovimentacaoModal() {
   const body = `
     <div class="form-group">
       <label class="form-label">Tipo</label>
-      <select id="mov-tipo" class="form-select" onchange="window.updateProdutoOptions()">
+      <select id="mov-tipo" class="form-select" onchange="window.updateProdutoOptions(); window.updateClienteOptions();">
         ${tipoOptions}
       </select>
     </div>
@@ -744,9 +833,9 @@ async function openMovimentacaoModal() {
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Cliente / Fornecedor</label>
-      <select id="mov-cliente-select" class="form-select">${clienteOptions}</select>
-      ${semClientes}
+      <label class="form-label" id="mov-cliente-label">Cliente / Fornecedor</label>
+      <select id="mov-cliente-select" class="form-select"></select>
+      <small id="mov-sem-clientes" style="color:var(--accent-danger);display:none;margin-top:6px;"></small>
     </div>
     <div class="form-group"><label class="form-label">Descrição</label><input type="text" id="mov-descricao" class="form-input" placeholder="Descrição breve da movimentação"></div>
     <div class="form-row">
@@ -762,6 +851,7 @@ async function openMovimentacaoModal() {
   `;
   openModal('Nova Movimentação', body, `<button class="btn btn-primary" onclick="saveMovimentacao()">Salvar</button>`);
   window.updateProdutoOptions();
+  window.updateClienteOptions();
 }
 
 function onProdutoMovChange() {
@@ -817,8 +907,11 @@ async function saveMovimentacao() {
   if (valor <= 0) { showToast('Informe um valor válido maior que zero.', 'error'); return; }
   if (!dataVal) { showToast('Informe a data.', 'error'); return; }
 
+  const tipoVal = document.getElementById('mov-tipo').value;
+  const isVenda = tipoVal === 'VENDA';
+
   const data = {
-    tipo: document.getElementById('mov-tipo').value,
+    tipo: tipoVal,
     cliente: clienteNome,
     descricao: descricao,
     valor: valor,
@@ -829,7 +922,8 @@ async function saveMovimentacao() {
     dataPrimeiroVencimento: dataVal,
     produtoId: produtoId ? parseInt(produtoId) : null,
     quantidade: quantidade,
-    clienteId: clienteId
+    clienteId: isVenda ? clienteId : null,
+    fornecedorId: !isVenda ? clienteId : null
   };
   try {
     await apiPost('/movimentacoes', data);
@@ -847,6 +941,15 @@ async function deleteMovimentacao(id) {
 }
 
 // --- CLIENTES ---
+/**
+ * loadClientes — Carrega e renderiza a lista de clientes.
+ *
+ * Assim como loadProdutos, esta função aplica o padrão de Transparência
+ * de Acesso dos sistemas distribuídos: o usuário não precisa saber onde
+ * o dado está fisicamente armazenado (Supabase/PostgreSQL na nuvem);
+ * ele apenas vê a tabela populada. O middleware Spring Security valida
+ * a sessão antes de autorizar a consulta.
+ */
 async function loadClientes() {
   const tbody = document.getElementById('clientes-table-body');
   if (!tbody) return;
@@ -863,22 +966,37 @@ async function loadClientes() {
         </td>
       </tr>
     `).join('');
+    
+    // Atualiza o contador
+    const countEl = document.getElementById('clientes-count');
+    if (countEl) countEl.textContent = `${clientes.length} cadastros`;
   } catch (err) { tbody.innerHTML = 'Erro ao carregar.'; }
 }
 
 function openClienteModal() {
   const body = `
     <div class="form-group"><label class="form-label">Nome</label><input type="text" id="cli-nome" class="form-input"></div>
-    <div class="form-group"><label class="form-label">Documento</label><input type="text" id="cli-documento" class="form-input"></div>
+    <div class="form-group">
+      <label class="form-label">CPF (11 dígitos, apenas números)</label>
+      <input type="text" id="cli-documento" class="form-input" maxlength="11" oninput="this.value = this.value.replace(/\\D/g, '')">
+    </div>
+    <div class="form-group"><label class="form-label">Telefone</label><input type="text" id="cli-telefone" class="form-input"></div>
     <div class="form-group"><label class="form-label">E-mail</label><input type="email" id="cli-email" class="form-input"></div>
   `;
   openModal('Novo Cliente', body, `<button class="btn btn-primary" onclick="saveCliente()">Salvar</button>`);
 }
 
 async function saveCliente() {
+  const doc = document.getElementById('cli-documento').value;
+  if (doc && doc.length !== 11) {
+    showToast('CPF deve conter exatamente 11 dígitos numéricos.', 'error');
+    return;
+  }
+  
   const data = {
     nome: document.getElementById('cli-nome').value,
-    documento: document.getElementById('cli-documento').value,
+    documento: doc,
+    telefone: document.getElementById('cli-telefone').value,
     email: document.getElementById('cli-email').value
   };
   try { await apiPost('/clientes', data); closeModal(); loadClientes(); } catch (err) { showToast(err.message, 'error'); }
@@ -887,6 +1005,72 @@ async function saveCliente() {
 async function deleteCliente(id) {
   if (!confirm('Deseja excluir?')) return;
   try { await apiDelete(`/clientes/${id}`); loadClientes(); } catch (err) { showToast(err.message, 'error'); }
+}
+
+// --- FORNECEDORES ---
+/**
+ * loadFornecedores — Carrega e renderiza a lista de fornecedores.
+ *
+ * O CNPJ exigido com 14 dígitos segue validação no back-end (Regex no
+ * FornecedorRequest.java) e no front-end (maxlength + replace de não-dígitos).
+ * Esta dupla validação é uma prática de QA (Defense in Depth) que protege
+ * o banco de dados de dados malformados mesmo se o front-end for bypassado.
+ */
+async function loadFornecedores() {
+  const tbody = document.getElementById('fornecedores-table-body');
+  if (!tbody) return;
+  try {
+    const fornecedores = await apiGet('/fornecedores');
+    tbody.innerHTML = fornecedores.map(f => `
+      <tr>
+        <td>${escapeHtml(f.nome)}</td>
+        <td>${f.documento || '-'}</td>
+        <td>${f.email || '-'}</td>
+        <td>${f.telefone || '-'}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="deleteFornecedor(${f.id})">Excluir</button>
+        </td>
+      </tr>
+    `).join('');
+    
+    // Atualiza o contador
+    const countEl = document.getElementById('fornecedores-count');
+    if (countEl) countEl.textContent = `${fornecedores.length} cadastrados`;
+  } catch (err) { tbody.innerHTML = 'Erro ao carregar.'; }
+}
+
+function openFornecedorModal() {
+  const body = `
+    <div class="form-group"><label class="form-label">Nome</label><input type="text" id="forn-nome" class="form-input"></div>
+    <div class="form-group">
+      <label class="form-label">CNPJ (14 dígitos, apenas números)</label>
+      <input type="text" id="forn-documento" class="form-input" maxlength="14" oninput="this.value = this.value.replace(/\\D/g, '')">
+    </div>
+    <div class="form-group"><label class="form-label">Telefone</label><input type="text" id="forn-telefone" class="form-input"></div>
+    <div class="form-group"><label class="form-label">E-mail</label><input type="email" id="forn-email" class="form-input"></div>
+  `;
+  openModal('Novo Fornecedor', body, `<button class="btn btn-primary" onclick="saveFornecedor()">Salvar</button>`);
+}
+
+async function saveFornecedor() {
+  const doc = document.getElementById('forn-documento').value;
+  if (doc && doc.length !== 14) {
+    showToast('CNPJ deve conter exatamente 14 dígitos numéricos.', 'error');
+    return;
+  }
+
+  const data = {
+    nome: document.getElementById('forn-nome').value,
+    documento: doc,
+    telefone: document.getElementById('forn-telefone').value,
+    email: document.getElementById('forn-email').value
+  };
+  try { await apiPost('/fornecedores', data); closeModal(); loadFornecedores(); } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteFornecedor(id) {
+  if (!confirm('Deseja excluir?')) return;
+  try { await apiDelete(`/fornecedores/${id}`); loadFornecedores(); } catch (err) { showToast(err.message, 'error'); }
 }
 
 // --- RELATORIOS ---
@@ -907,10 +1091,12 @@ async function loadRelatoriosPage() {
       <div class="empty-state-text">Selecione o período e clique em Gerar Relatório</div>
     </div>`;
 
-  await loadRelatorioProdutos();
-
-  // Carregar relatório por vendedor se for gestor
-  if (isAdmin()) await loadRelatorioVendedores();
+  if (isAdmin()) {
+    document.getElementById('relatorio-produtos-content').closest('.report-section').style.display = '';
+    await loadRelatorioProdutos();
+  } else {
+    document.getElementById('relatorio-produtos-content').closest('.report-section').style.display = 'none';
+  }
 }
 
 async function loadRelatorioFinanceiro() {
@@ -958,8 +1144,9 @@ async function loadRelatorioFinanceiro() {
           <div class="kpi-value text-success">${formatCurrency(r.totalEntradas)}</div>
           <div class="kpi-hint">Média diária: ${formatCurrency(r.mediaDiariaEntradas)}</div>
         </div>
+        ${isAdmin() ? `
         <div class="kpi-card" data-color="red">
-          <div class="kpi-label">📉 Total Compras</div>
+          <div class="kpi-label">📉 Despesas</div>
           <div class="kpi-value text-danger">${formatCurrency(r.totalSaidas)}</div>
           <div class="kpi-hint">Média diária: ${formatCurrency(r.mediaDiariaSaidas)}</div>
         </div>
@@ -973,17 +1160,19 @@ async function loadRelatorioFinanceiro() {
           <div class="kpi-value">${r.totalClientesComDebito || 0}</div>
           <div class="kpi-hint">Total: ${formatCurrency(r.totalDevidoPorClientesNoPeriodo)}</div>
         </div>
+        ` : ''}
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+      <div style="display:grid;grid-template-columns:${isAdmin() ? '1fr 1fr' : '1fr'};gap:16px;margin-bottom:20px;">
         <div class="card" style="padding:18px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📥 Vendas por Categoria</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📥 Minhas Vendas por Categoria</div>
           ${catEntradasHTML}
         </div>
+        ${isAdmin() ? `
         <div class="card" style="padding:18px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📤 Compras por Categoria</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📤 Despesas por Categoria</div>
           ${catSaidasHTML}
-        </div>
+        </div>` : ''}
       </div>
 
       <div class="card" style="padding:18px;">
@@ -992,8 +1181,14 @@ async function loadRelatorioFinanceiro() {
       </div>
     `;
 
-    // Atualiza relatório por vendedor com o mesmo período
-    if (isAdmin()) await loadRelatorioVendedores(inicio, fim);
+    // Atualiza relatório por vendedor e fornecedor com o mesmo período
+    if (isAdmin()) {
+      await loadRelatorioVendedores(inicio, fim);
+      await loadRelatorioFornecedores(inicio, fim);
+    } else {
+      const uC = document.getElementById('relatorio-usuarios-content');
+      if(uC) uC.innerHTML = '';
+    }
 
   } catch (err) { container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Erro ao gerar relatório: ${escapeHtml(err.message)}</div></div>`; }
 }
@@ -1020,7 +1215,7 @@ async function loadRelatorioProdutos() {
         <div class="kpi-card" data-color="indigo"><div class="kpi-label">📦 Produtos Ativos</div><div class="kpi-value">${r.totalProdutosAtivos}</div></div>
         <div class="kpi-card" data-color="amber"><div class="kpi-label">🗄️ Itens em Estoque</div><div class="kpi-value">${r.totalItensEmEstoque}</div></div>
         <div class="kpi-card" data-color="emerald"><div class="kpi-label">💵 Valor Venda</div><div class="kpi-value text-success">${formatCurrency(r.valorTotalEstoqueVenda)}</div></div>
-        <div class="kpi-card" data-color="red"><div class="kpi-label">💸 Valor Custo</div><div class="kpi-value text-danger">${formatCurrency(r.valorTotalEstoqueCusto)}</div></div>
+        <div class="kpi-card" data-color="red"><div class="kpi-label">💸 Despesas</div><div class="kpi-value text-danger">${formatCurrency(r.valorTotalEstoqueCusto)}</div></div>
         <div class="kpi-card" data-color="emerald"><div class="kpi-label">📈 Margem Bruta</div><div class="kpi-value text-success">${formatCurrency(r.margemBrutaEstoque)}</div></div>
       </div>
       <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Por Categoria</div>
@@ -1047,15 +1242,60 @@ async function loadRelatorioVendedores(inicio, fim) {
                 <div style="font-weight:700;font-size:14px;color:var(--text-primary);">${escapeHtml(v.nome || v.username)}</div>
                 <div style="font-size:11px;color:var(--text-muted);">@${escapeHtml(v.username)} · ${v.quantidadeMovimentacoes} mov.</div>
               </div>
-              <div style="text-align:right;">
-                <div class="text-success" style="font-weight:700;">${formatCurrency(v.totalEntradas)}</div>
-                <div class="text-danger" style="font-size:12px;">${formatCurrency(v.totalSaidas)}</div>
-                <div style="font-size:11px;color:var(--text-muted);">saldo: <span class="${v.saldo >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(v.saldo)}</span></div>
+              <div>
+                <div style="text-align:right;">
+                  <div class="text-success" style="font-weight:700;font-size:16px;">+${formatCurrency(v.totalEntradas)}</div>
+                </div>
               </div>
-            </div>`).join('')}
+            </div>
+          `).join('')}
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display:flex; justify-content: space-between;">
+             <span style="font-weight:bold; color:var(--text-primary);">Total de Entradas:</span>
+             <span class="text-success" style="font-weight:bold;">+${formatCurrency(vendedores.reduce((sum, v) => sum + v.totalEntradas, 0))}</span>
+          </div>
         </div>
-      </div>`;
-  } catch (e) { container.innerHTML = ''; }
+      </div>
+    `;
+  } catch (err) { container.innerHTML = ''; }
+}
+
+async function loadRelatorioFornecedores(inicio, fim) {
+  const container = document.getElementById('relatorio-usuarios-content');
+  if (!container || !isAdmin()) return;
+  const dataInicio = inicio || document.getElementById('rel-data-inicio')?.value || new Date().toISOString().split('T')[0].slice(0, 7) + '-01';
+  const dataFim = fim || document.getElementById('rel-data-fim')?.value || new Date().toISOString().split('T')[0];
+  
+  try {
+    const fornecedores = await apiGet(`/relatorios/financeiro/fornecedores?dataInicio=${dataInicio}&dataFim=${dataFim}`);
+    if (!fornecedores.length) return;
+    
+    // Anexa ao conteúdo atual (que já tem Vendedores)
+    container.innerHTML += `
+      <div class="card" style="padding:20px;margin-top:16px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:16px;">🛒 Despesas por Fornecedor</div>
+        <div style="display:grid;gap:10px;">
+          ${fornecedores.map((f, i) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.02);">
+              <div style="font-size:18px;font-weight:800;color:var(--text-muted);min-width:28px;">#${i + 1}</div>
+              <div style="flex:1;">
+                <div style="font-weight:700;font-size:14px;color:var(--text-primary);">${escapeHtml(f.nome)}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${f.quantidadeMovimentacoes} mov.</div>
+              </div>
+              <div>
+                <div style="text-align:right;">
+                  <div class="text-danger" style="font-weight:700;font-size:16px;">-${formatCurrency(f.totalSaidas)}</div>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display:flex; justify-content: space-between;">
+             <span style="font-weight:bold; color:var(--text-primary);">Total de Despesas:</span>
+             <span class="text-danger" style="font-weight:bold;">-${formatCurrency(fornecedores.reduce((sum, f) => sum + f.totalSaidas, 0))}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (err) { }
 }
 
 // --- HISTORICO & LOGS ---
@@ -1503,9 +1743,19 @@ function applyRoleAccessControl() {
 
   const menuUsuarios = document.getElementById('menu-usuarios');
   const menuInfra = document.getElementById('menu-infra');
+  const menuRelatorios = document.getElementById('menu-relatorios');
+  const menuFornecedores = document.getElementById('menu-fornecedores');
+  const menuConfig = document.getElementById('menu-configuracoes');
 
   if (menuUsuarios) menuUsuarios.style.display = superuser ? '' : 'none';
   if (menuInfra) menuInfra.style.display = superuser ? '' : 'none';
+  if (menuConfig) menuConfig.style.display = superuser ? '' : 'none';
+  if (menuRelatorios) menuRelatorios.style.display = superuser ? 'none' : '';
+  
+  const role = sessionStorage.getItem('authRoleA3');
+  if (menuFornecedores) {
+    menuFornecedores.style.display = (role === 'ADMIN') ? '' : 'none';
+  }
 }
 
 async function initializeAuthenticatedApp() {
@@ -1523,6 +1773,7 @@ async function initializeAuthenticatedApp() {
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
+  carregarConfiguracaoApp();
   if (isAuthenticated()) {
     initializeAuthenticatedApp();
   } else {
@@ -1541,3 +1792,176 @@ function checkSystemHealth() {
   });
 }
 setInterval(checkSystemHealth, 30000);
+
+// --- PERSONALIZAÇÃO DE MARCA (QA) ---
+let configGlobal = {};
+
+async function carregarConfiguracaoApp() {
+  try {
+    const config = await apiGet('/config');
+    configGlobal = config;
+    aplicarConfiguracaoNaTela(config);
+  } catch (err) {
+    console.error('Erro ao carregar configurações de marca', err);
+  }
+}
+
+function aplicarConfiguracaoNaTela(config) {
+  if (!config) return;
+  
+  if (config.nomeAplicacao) {
+    document.title = config.nomeAplicacao;
+    const logoTexts = document.querySelectorAll('.logo-text');
+    logoTexts.forEach(el => el.textContent = config.nomeAplicacao);
+    const loginTitle = document.querySelector('.login-header h1');
+    if (loginTitle) loginTitle.textContent = config.nomeAplicacao;
+  }
+  
+  if (config.logoBase64) {
+    const logoImgs = document.querySelectorAll('.logo-img');
+    logoImgs.forEach(el => el.src = config.logoBase64);
+  }
+  
+  if (config.backgroundBase64) {
+    document.body.style.backgroundImage = `url('${config.backgroundBase64}')`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundAttachment = 'fixed';
+    const canvas = document.getElementById('global-bg-canvas');
+    if (canvas) canvas.style.display = 'none'; // Desabilita partículas se tiver fundo
+  } else {
+    document.body.style.backgroundImage = '';
+    const canvas = document.getElementById('global-bg-canvas');
+    if (canvas) canvas.style.display = 'block';
+  }
+  
+  if (config.btnTextDashboard) {
+    const el = document.getElementById('menu-dashboard');
+    if (el) el.textContent = config.btnTextDashboard;
+  }
+  if (config.btnTextProdutos) {
+    const el = document.getElementById('menu-produtos');
+    if (el) el.textContent = config.btnTextProdutos;
+  }
+  if (config.btnTextClientes) {
+    const el = document.getElementById('menu-clientes');
+    if (el) el.textContent = config.btnTextClientes;
+  }
+  if (config.btnTextMovimentacoes) {
+    const el = document.getElementById('menu-movimentacoes');
+    if (el) el.textContent = config.btnTextMovimentacoes;
+  }
+  if (config.btnTextUsuarios) {
+    const el = document.getElementById('menu-usuarios');
+    if (el) el.textContent = config.btnTextUsuarios;
+  }
+  if (config.btnTextHistorico) {
+    const el = document.getElementById('menu-historico');
+    if (el) el.textContent = config.btnTextHistorico;
+  }
+  
+  if (config.btnTextNovaVenda) {
+    const btnVenda = document.getElementById('btn-nova-movimentacao');
+    if (btnVenda) btnVenda.textContent = config.btnTextNovaVenda;
+  }
+  
+  if (config.btnTextNovoProduto) {
+    const btnProd = document.getElementById('btn-novo-produto');
+    if (btnProd) btnProd.textContent = config.btnTextNovoProduto;
+  }
+
+  // Preencher form se estivermos na página de config
+  const inpNome = document.getElementById('config-nome-app');
+  if (inpNome && config.nomeAplicacao) inpNome.value = config.nomeAplicacao;
+  
+  const inpDash = document.getElementById('config-btn-dashboard');
+  if (inpDash && config.btnTextDashboard) inpDash.value = config.btnTextDashboard;
+
+  const inpProd = document.getElementById('config-btn-produtos');
+  if (inpProd && config.btnTextProdutos) inpProd.value = config.btnTextProdutos;
+
+  const inpCli = document.getElementById('config-btn-clientes');
+  if (inpCli && config.btnTextClientes) inpCli.value = config.btnTextClientes;
+
+  const inpMov = document.getElementById('config-btn-movimentacoes');
+  if (inpMov && config.btnTextMovimentacoes) inpMov.value = config.btnTextMovimentacoes;
+
+  const inpUsu = document.getElementById('config-btn-usuarios');
+  if (inpUsu && config.btnTextUsuarios) inpUsu.value = config.btnTextUsuarios;
+
+  const inpHisto = document.getElementById('config-btn-historico');
+  if (inpHisto && config.btnTextHistorico) inpHisto.value = config.btnTextHistorico;
+  
+  const inpBtnProd = document.getElementById('config-btn-produto');
+  if (inpBtnProd && config.btnTextNovoProduto) inpBtnProd.value = config.btnTextNovoProduto;
+  
+  const inpVenda = document.getElementById('config-btn-venda');
+  if (inpVenda && config.btnTextNovaVenda) inpVenda.value = config.btnTextNovaVenda;
+}
+
+function previewImagem(input, targetId) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    
+    // Validação QA - Extensão e Tamanho
+    const isLogo = targetId === 'preview-logo';
+    const maxSizeMB = isLogo ? 2 : 3;
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    
+    if (file.size > maxSizeBytes) {
+      showToast(`O arquivo excede o limite de ${maxSizeMB}MB.`, 'error');
+      input.value = '';
+      return;
+    }
+    if (isLogo && file.type !== 'image/png') {
+      showToast('A logo deve ser obrigatoriamente um arquivo PNG.', 'error');
+      input.value = '';
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = document.getElementById(targetId);
+      img.src = e.target.result;
+      img.style.display = 'block';
+      if (isLogo) configGlobal.logoBase64 = e.target.result;
+      else configGlobal.backgroundBase64 = e.target.result;
+    }
+    reader.readAsDataURL(file);
+  }
+}
+
+async function salvarConfiguracaoApp() {
+  const nomeApp = document.getElementById('config-nome-app').value.trim();
+  const btnDash = document.getElementById('config-btn-dashboard').value.trim();
+  const btnProd = document.getElementById('config-btn-produtos').value.trim();
+  const btnCli = document.getElementById('config-btn-clientes').value.trim();
+  const btnMov = document.getElementById('config-btn-movimentacoes').value.trim();
+  const btnUsu = document.getElementById('config-btn-usuarios').value.trim();
+  const btnHisto = document.getElementById('config-btn-historico').value.trim();
+  const btnBtnProd = document.getElementById('config-btn-produto').value.trim();
+  const btnVenda = document.getElementById('config-btn-venda').value.trim();
+  
+  const payload = {
+    nomeAplicacao: nomeApp || 'Gestão Financeira',
+    logoBase64: configGlobal.logoBase64 || null,
+    backgroundBase64: configGlobal.backgroundBase64 || null,
+    btnTextDashboard: btnDash || 'Dashboard',
+    btnTextNovaVenda: btnVenda || 'Nova Movimentação',
+    btnTextNovoProduto: btnBtnProd || 'Novo Produto',
+    btnTextProdutos: btnProd || 'Produtos',
+    btnTextClientes: btnCli || 'Clientes',
+    btnTextMovimentacoes: btnMov || 'Movimentações',
+    btnTextUsuarios: btnUsu || 'Gestão de Acessos',
+    btnTextHistorico: btnHisto || 'Histórico'
+  };
+  
+  try {
+    const res = await apiPut('/config', payload);
+    configGlobal = res;
+    aplicarConfiguracaoNaTela(res);
+    showToast('Configurações aplicadas com sucesso!', 'success');
+  } catch (err) {
+    showToast(err.message || 'Erro ao salvar configurações.', 'error');
+  }
+}
